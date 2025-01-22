@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soundtrack JS Tests</title>
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <h1></h1>
+</body>
+
+<script type="module">
+    import { Player, Clip, Play } from "../dist/soundtrack.esm.js";
+
+    // const player = new Player(
+    //     new Clip(
+    //         new Play("./15.oga"),
+    //         0,
+    //         60
+    //     )
+    // );
+
+    // let compiled = null;
+
+    // async function load() {
+    //     compiled = await player.compile();
+    // }
+
+    // load();
+
+    document.body.onclick = (_) => {
+        // if (compiled === null) {
+        //     console.log("Loading...");
+        //     return;
+        // }
+
+        // console.log(compiled);
+        // console.log("Playing!");
+        // compiled.schedule();
+
+        async function play() {
+            const play_command = new Player(new Play("./celery_in_a_carrot_field.mp3"));
+            const audio_track = await play_command.compile();
+
+            audio_track.play();
+        }
+
+        play();
+    };
+</script>
+
+</html>

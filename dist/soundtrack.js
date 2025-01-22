@@ -29,7 +29,7 @@
             this.duration = buffer.duration;
             this.players = new Set();
         }
-        schedule(time_coordinate, maybe_offset) {
+        play(maybe_wait, maybe_offset) {
             const player = this.context.createBufferSource();
             const players = this.players;
             players.add(player);
@@ -39,11 +39,12 @@
                 players.delete(player);
             };
             player.connect(this.output_node);
-            player.start(time_coordinate, maybe_offset);
+            player.start(this.context.currentTime + (maybe_wait ?? 0), maybe_offset);
         }
-        cancel(time_coordinate) {
+        stop(maybe_wait) {
+            const wait = this.context.currentTime + (maybe_wait ?? 0);
             for (const player of this.players) {
-                player.stop(time_coordinate);
+                player.stop(wait);
             }
         }
         async compile(context, output_node) {
@@ -81,14 +82,15 @@
         get output_node() {
             return this.command.output_node;
         }
-        schedule(time_coordinate, maybe_offset) {
-            const command = this.command;
+        play(maybe_wait, maybe_offset) {
+            const wait = maybe_wait ?? 0;
             const offset = maybe_offset ?? 0;
-            command.schedule(time_coordinate, (this.offset + offset));
-            command.cancel((time_coordinate + (this.duration - offset)));
+            const command = this.command;
+            command.play(wait, (this.offset + offset));
+            command.stop((wait + (this.duration - offset)));
         }
-        cancel(time_coordinate) {
-            this.command.cancel(time_coordinate);
+        stop(maybe_wait) {
+            this.command.stop(maybe_wait);
         }
         async compile(context, output_node) {
             if (this.context === context && this.output_node === output_node) {
@@ -121,25 +123,26 @@
         get output_node() {
             return this.command.output_node;
         }
-        schedule(time_coordinate, maybe_offset) {
+        play(maybe_wait, maybe_offset) {
+            const wait = maybe_wait ?? 0;
             const offset = maybe_offset ?? 0;
             const command = this.command;
             const command_duration = command.duration;
             const duration = this.duration;
             let remaining_duration = (duration - offset);
             let repeat_offset = (offset % command_duration);
-            let start_time = time_coordinate;
+            let start_time = wait;
             while (remaining_duration > 0) {
-                command.schedule(start_time, repeat_offset);
+                command.play(start_time, repeat_offset);
                 const repeat_duration = command_duration - repeat_offset;
                 start_time = (start_time + repeat_duration);
                 remaining_duration = (remaining_duration - repeat_duration);
                 repeat_offset = 0;
             }
-            this.cancel((time_coordinate + duration - offset));
+            this.stop(wait + (duration - offset));
         }
-        cancel(time_coordinate) {
-            this.command.cancel(time_coordinate);
+        stop(maybe_wait) {
+            this.command.stop(maybe_wait);
         }
         async compile(context, output_node) {
             if (this.context === context && this.output_node === output_node) {
@@ -170,7 +173,8 @@
                 .map((command) => command.duration)
                 .reduce((total_duration, duration) => total_duration + duration, 0);
         }
-        schedule(time_coordinate, maybe_offset) {
+        play(maybe_wait, maybe_offset) {
+            let wait = maybe_wait ?? 0;
             let offset = (maybe_offset ?? 0);
             const iterator = this.commands.values();
             let next_start_time = 0;
@@ -181,8 +185,8 @@
                 }
                 const command_duration = command.duration;
                 if (offset < command_duration) {
-                    command.schedule(time_coordinate, offset);
-                    next_start_time = (time_coordinate +
+                    command.play(wait, offset);
+                    next_start_time = (wait +
                         (command_duration - offset));
                     break;
                 }
@@ -193,13 +197,13 @@
                 if (done) {
                     break;
                 }
-                command.schedule(next_start_time);
+                command.play(next_start_time);
                 next_start_time = (next_start_time + command.duration);
             }
         }
-        cancel(time_coordinate) {
+        stop(maybe_wait) {
             for (const command of this.commands) {
-                command.cancel(time_coordinate);
+                command.stop(maybe_wait);
             }
         }
         async compile(context, output_node) {
@@ -239,9 +243,10 @@
             this.output_node = output_node;
             this.gain_commands = gain_commands;
         }
-        schedule(time_coordinate, maybe_offset) {
+        play(maybe_wait, maybe_offset) {
+            const wait = maybe_wait ?? 0;
             const offset = maybe_offset ?? 0;
-            this.to_gain.schedule(time_coordinate, offset);
+            this.to_gain.play(wait, offset);
             const gain = this.gain_node.gain;
             for (const { transition, value, when } of this.gain_commands) {
                 const value_changer = (() => {
@@ -257,11 +262,11 @@
                         }
                     }
                 })();
-                value_changer(value, Math.max(0, (time_coordinate + when) - offset));
+                value_changer(value, Math.max(0, ((wait ?? 0) + when) - offset));
             }
         }
-        cancel(time_coordinate) {
-            this.to_gain.cancel(time_coordinate);
+        stop(maybe_wait) {
+            this.to_gain.stop(maybe_wait);
         }
         async compile(context, output_node) {
             if (this.context === context && this.output_node === output_node) {
@@ -270,6 +275,16 @@
             const gain_node = context.createGain();
             gain_node.connect(output_node);
             return new CompiledGain(gain_node, output_node, await this.to_gain.compile(context, gain_node), this.gain_commands);
+        }
+    }
+    class Player {
+        context;
+        constructor(context) {
+            this.context = context ?? new AudioContext();
+        }
+        load(command) {
+            const context = this.context;
+            return command.compile(context, context.destination);
         }
     }
 
@@ -281,6 +296,7 @@
     exports.CompiledSequence = CompiledSequence;
     exports.Gain = Gain;
     exports.Play = Play;
+    exports.Player = Player;
     exports.Repeat = Repeat;
     exports.Sequence = Sequence;
 

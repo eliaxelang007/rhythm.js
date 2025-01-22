@@ -1,0 +1,124 @@
+# Soundtrack.js!
+
+# Description
+[soundtrack.js](https://github.com/eliaxelang007/soundtrack.js/tree/main) is a relatively thin wrapper around the Web AudioAPI that (hopefully) makes interacting with it a lot more intuitive!
+
+The whole library is built around the concepts of Tracks and Compilation.
+
+To play a track with soundtrack.js, use the following code!
+
+```javascript
+import { Player, Play } from "../dist/soundtrack.esm.js";
+
+async function play() {
+  const player = new Player(/* new AudioCommand() [You can optionally provide an AudioContext] */);
+  const command = new Play("./celery_in_a_carrot_field.mp3");
+
+  const audio_track = await player.load(command);
+
+  audio_track.play();
+}
+
+play();
+```
+
+To clip a track, do this!
+
+```javascript
+import { Player, Play, Clip } from "../dist/soundtrack.esm.js";
+
+async function play() {
+  const player = new Player();
+
+  const clip_start = 5;
+  const clip_duration = 10;
+
+  const command = new Clip(
+    new Play("./celery_in_a_carrot_field.mp3"),
+    clip_start,
+    clip_duration
+  );
+
+  const audio_track = await command.compile();
+
+  audio_track.play();
+}
+
+play();
+```
+
+`Clip` will start 5 seconds into its child node, `Play`, and then play the next 10 seconds.
+To repeat a track, do this!
+
+```javascript
+import { Player, Play, Clip, Repeat } from "soundtrack.esm.js";
+
+async function play() {
+  const player = new Player();
+
+  const clip_start = 5;
+  const clip_duration = 10;
+
+  const repeat_for = 20;
+
+  const command = new Repeat(
+    new Clip(
+      new Play("./celery_in_a_carrot_field.mp3"),
+      clip_start,
+      clip_duration
+    ),
+    repeat_for
+  );
+
+  const audio_track = await command.compile();
+
+  audio_track.play();
+}
+
+play();
+```
+
+The `Repeat` node will repeat the`[Clip` inside of it for 20 seconds.
+Play one command after another with [Sequence]!
+
+```javascript
+import { Player, Play, Clip, Repeat } from "soundtrack.esm.js";
+
+async function play() {
+  const player = new Player();
+
+  const clip_start = 5;
+  const clip_duration = 10;
+
+  const repeat_for = 20;
+
+  const command = new Sequence(
+    [
+      new Repeat(
+        new Clip(
+          new Play("./celery_in_a_carrot_field.mp3"),
+          clip_start,
+          clip_duration
+        ),
+        repeat_for
+      ),
+
+      new Clip(
+        new Repeat(
+          new Play("")
+        )
+      )
+    ]
+  );
+
+
+  const audio_track = await command.compile();
+
+  audio_track.play();
+}
+
+play();
+```
+
+# Credits
+Sample music in tests from [StarryAttic](https://www.youtube.com/watch?v=FqI9cM6fczU) on Youtube!

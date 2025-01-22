@@ -3,8 +3,8 @@ type NewType<T, Brand extends string> = T & { __brand: Brand };
 type Seconds = NewType<number, "Seconds">;
 
 interface Track {
-    schedule(time_coordinate: Seconds, maybe_offset?: Seconds): void;
-    cancel(time_coordinate: Seconds): void;
+    play(maybe_wait?: Seconds, maybe_offset?: Seconds): void;
+    stop(maybe_wait?: Seconds): void;
     get duration(): Seconds;
 }
 
@@ -13,21 +13,21 @@ interface AudioContextualized<OutputNode extends AudioNode> {
     get output_node(): OutputNode;
 }
 
-interface Compilable<
+interface AudioCommand<
     OutputNode extends AudioNode,
-    CompileTo extends AudioCommand<OutputNode, CompileTo>
+    CompileTo extends CompiledAudioCommand<OutputNode, CompileTo>
 > {
     compile(context: AudioContext, output_node: OutputNode): Promise<CompileTo>;
 }
 
-interface AudioCommand<
+interface CompiledAudioCommand<
     OutputNode extends AudioNode,
-    Self extends AudioCommand<OutputNode, Self>
+    Self extends CompiledAudioCommand<OutputNode, Self>
 > extends Track,
     AudioContextualized<OutputNode>,
-    Compilable<OutputNode, Self> { }
+    AudioCommand<OutputNode, Self> { }
 
-class Play<N extends AudioNode> implements Compilable<N, CompiledPlay<N>> {
+class Play<N extends AudioNode> implements AudioCommand<N, CompiledPlay<N>> {
     readonly path: string;
 
     constructor(path: string) {
@@ -48,7 +48,7 @@ class Play<N extends AudioNode> implements Compilable<N, CompiledPlay<N>> {
 }
 
 class CompiledPlay<OutputNode extends AudioNode>
-    implements AudioCommand<OutputNode, CompiledPlay<OutputNode>> {
+    implements CompiledAudioCommand<OutputNode, CompiledPlay<OutputNode>> {
     readonly context: AudioContext;
     readonly output_node: OutputNode;
 
@@ -69,7 +69,7 @@ class CompiledPlay<OutputNode extends AudioNode>
         this.players = new Set();
     }
 
-    schedule(time_coordinate: Seconds, maybe_offset?: Seconds): void {
+    play(maybe_wait?: Seconds, maybe_offset?: Seconds): void {
         const player = this.context.createBufferSource();
         const players = this.players;
 
@@ -82,12 +82,14 @@ class CompiledPlay<OutputNode extends AudioNode>
         };
         player.connect(this.output_node);
 
-        player.start(time_coordinate, maybe_offset);
+        player.start(this.context.currentTime + (maybe_wait ?? 0), maybe_offset);
     }
 
-    cancel(time_coordinate: Seconds): void {
+    stop(maybe_wait?: Seconds): void {
+        const wait = this.context.currentTime + (maybe_wait ?? 0);
+
         for (const player of this.players) {
-            player.stop(time_coordinate);
+            player.stop(wait);
         }
     }
 
@@ -105,9 +107,9 @@ class CompiledPlay<OutputNode extends AudioNode>
 
 class Clip<
     OutputNode extends AudioNode,
-    CompileTo extends AudioCommand<OutputNode, CompileTo>,
-    Child extends Compilable<OutputNode, CompileTo>
-> implements Compilable<OutputNode, CompiledClip<OutputNode, CompileTo>> {
+    CompileTo extends CompiledAudioCommand<OutputNode, CompileTo>,
+    Child extends AudioCommand<OutputNode, CompileTo>
+> implements AudioCommand<OutputNode, CompiledClip<OutputNode, CompileTo>> {
     readonly to_clip: Child;
     readonly offset: Seconds;
     readonly duration: Seconds;
@@ -132,8 +134,8 @@ class Clip<
 
 class CompiledClip<
     OutputNode extends AudioNode,
-    Child extends AudioCommand<OutputNode, Child>
-> implements AudioCommand<OutputNode, CompiledClip<OutputNode, Child>> {
+    Child extends CompiledAudioCommand<OutputNode, Child>
+> implements CompiledAudioCommand<OutputNode, CompiledClip<OutputNode, Child>> {
     readonly command: Child;
     readonly offset: Seconds;
     readonly duration: Seconds;
@@ -152,16 +154,18 @@ class CompiledClip<
         return this.command.output_node;
     }
 
-    schedule(time_coordinate: Seconds, maybe_offset?: Seconds): void {
-        const command = this.command;
+    play(maybe_wait?: Seconds, maybe_offset?: Seconds): void {
+        const wait = maybe_wait ?? 0 as Seconds;
         const offset = maybe_offset ?? 0;
 
-        command.schedule(time_coordinate, (this.offset + offset) as Seconds);
-        command.cancel((time_coordinate + (this.duration - offset)) as Seconds);
+        const command = this.command;
+
+        command.play(wait, (this.offset + offset) as Seconds);
+        command.stop((wait + (this.duration - offset)) as Seconds);
     }
 
-    cancel(time_coordinate: Seconds): void {
-        this.command.cancel(time_coordinate);
+    stop(maybe_wait?: Seconds): void {
+        this.command.stop(maybe_wait);
     }
 
     async compile(
@@ -182,9 +186,9 @@ class CompiledClip<
 
 class Repeat<
     OutputNode extends AudioNode,
-    CompileTo extends AudioCommand<OutputNode, CompileTo>,
-    Child extends Compilable<OutputNode, CompileTo>
-> implements Compilable<OutputNode, CompiledRepeat<OutputNode, CompileTo>> {
+    CompileTo extends CompiledAudioCommand<OutputNode, CompileTo>,
+    Child extends AudioCommand<OutputNode, CompileTo>
+> implements AudioCommand<OutputNode, CompiledRepeat<OutputNode, CompileTo>> {
     readonly to_repeat: Child;
     readonly duration: Seconds;
 
@@ -206,8 +210,8 @@ class Repeat<
 
 class CompiledRepeat<
     OutputNode extends AudioNode,
-    Child extends AudioCommand<OutputNode, Child>
-> implements AudioCommand<OutputNode, CompiledRepeat<OutputNode, Child>> {
+    Child extends CompiledAudioCommand<OutputNode, Child>
+> implements CompiledAudioCommand<OutputNode, CompiledRepeat<OutputNode, Child>> {
     readonly command: Child;
     readonly duration: Seconds;
 
@@ -224,7 +228,8 @@ class CompiledRepeat<
         return this.command.output_node;
     }
 
-    schedule(time_coordinate: Seconds, maybe_offset?: Seconds): void {
+    play(maybe_wait?: Seconds, maybe_offset?: Seconds): void {
+        const wait = maybe_wait ?? 0 as Seconds;
         const offset = maybe_offset ?? 0;
 
         const command = this.command;
@@ -233,10 +238,10 @@ class CompiledRepeat<
 
         let remaining_duration = (duration - offset) as Seconds;
         let repeat_offset = (offset % command_duration) as Seconds;
-        let start_time = time_coordinate;
+        let start_time = wait;
 
         while (remaining_duration > 0) {
-            command.schedule(start_time, repeat_offset as Seconds);
+            command.play(start_time, repeat_offset as Seconds);
 
             const repeat_duration = command_duration - repeat_offset;
 
@@ -245,11 +250,11 @@ class CompiledRepeat<
             repeat_offset = 0 as Seconds;
         }
 
-        this.cancel((time_coordinate + duration - offset) as Seconds);
+        this.stop(wait + (duration - offset) as Seconds);
     }
 
-    cancel(time_coordinate: Seconds): void {
-        this.command.cancel(time_coordinate);
+    stop(maybe_wait?: Seconds): void {
+        this.command.stop(maybe_wait);
     }
 
     async compile(
@@ -269,9 +274,9 @@ class CompiledRepeat<
 
 class Sequence<
     OutputNode extends AudioNode,
-    CompileTo extends AudioCommand<OutputNode, CompileTo>,
-    Child extends Compilable<OutputNode, CompileTo>
-> implements Compilable<OutputNode, CompiledSequence<OutputNode, CompileTo>> {
+    CompileTo extends CompiledAudioCommand<OutputNode, CompileTo>,
+    Child extends AudioCommand<OutputNode, CompileTo>
+> implements AudioCommand<OutputNode, CompiledSequence<OutputNode, CompileTo>> {
     readonly sequence: Child[];
 
     constructor(sequence: Child[]) {
@@ -296,9 +301,9 @@ class Sequence<
 
 class CompiledSequence<
     OutputNode extends AudioNode,
-    Child extends AudioCommand<OutputNode, Child>
-> implements AudioCommand<OutputNode, CompiledSequence<OutputNode, Child>> {
-    readonly commands: AudioCommand<OutputNode, Child>[];
+    Child extends CompiledAudioCommand<OutputNode, Child>
+> implements CompiledAudioCommand<OutputNode, CompiledSequence<OutputNode, Child>> {
+    readonly commands: CompiledAudioCommand<OutputNode, Child>[];
     readonly duration: Seconds;
     readonly context: AudioContext;
     readonly output_node: OutputNode;
@@ -306,7 +311,7 @@ class CompiledSequence<
     constructor(
         context: AudioContext,
         output_node: OutputNode,
-        commands: AudioCommand<OutputNode, Child>[]
+        commands: CompiledAudioCommand<OutputNode, Child>[]
     ) {
         this.context = context;
         this.output_node = output_node;
@@ -320,7 +325,8 @@ class CompiledSequence<
             ) as Seconds;
     }
 
-    schedule(time_coordinate: Seconds, maybe_offset?: Seconds): void {
+    play(maybe_wait?: Seconds, maybe_offset?: Seconds): void {
+        let wait = maybe_wait ?? 0 as Seconds;
         let offset = (maybe_offset ?? 0) as Seconds;
 
         const iterator = this.commands.values();
@@ -337,8 +343,8 @@ class CompiledSequence<
             const command_duration = command.duration;
 
             if (offset < command_duration) {
-                command.schedule(time_coordinate, offset);
-                next_start_time = (time_coordinate +
+                command.play(wait, offset);
+                next_start_time = (wait +
                     (command_duration - offset)) as Seconds;
                 break;
             }
@@ -353,15 +359,15 @@ class CompiledSequence<
                 break;
             }
 
-            command.schedule(next_start_time);
+            command.play(next_start_time);
 
             next_start_time = (next_start_time + command.duration) as Seconds;
         }
     }
 
-    cancel(time_coordinate: Seconds): void {
+    stop(maybe_wait?: Seconds): void {
         for (const command of this.commands) {
-            command.cancel(time_coordinate);
+            command.stop(maybe_wait);
         }
     }
 
@@ -393,9 +399,9 @@ type GainCommand = {
 
 class Gain<
     OutputNode extends AudioNode,
-    CompileTo extends AudioCommand<GainNode, CompileTo>,
-    Child extends Compilable<GainNode, CompileTo>
-> implements Compilable<OutputNode, CompiledGain<OutputNode, CompileTo>> {
+    CompileTo extends CompiledAudioCommand<GainNode, CompileTo>,
+    Child extends AudioCommand<GainNode, CompileTo>
+> implements AudioCommand<OutputNode, CompiledGain<OutputNode, CompileTo>> {
     readonly command: Child;
     readonly gain_commands: GainCommand[];
 
@@ -419,8 +425,8 @@ class Gain<
 
 class CompiledGain<
     OutputNode extends AudioNode,
-    Child extends AudioCommand<GainNode, Child>
-> implements AudioCommand<OutputNode, CompiledGain<OutputNode, Child>> {
+    Child extends CompiledAudioCommand<GainNode, Child>
+> implements CompiledAudioCommand<OutputNode, CompiledGain<OutputNode, Child>> {
     readonly gain_node: GainNode;
     readonly to_gain: Child;
     readonly gain_commands: GainCommand[];
@@ -441,10 +447,11 @@ class CompiledGain<
         this.gain_commands = gain_commands;
     }
 
-    schedule(time_coordinate: Seconds, maybe_offset?: Seconds): void {
+    play(maybe_wait?: Seconds, maybe_offset?: Seconds): void {
+        const wait = maybe_wait ?? 0 as Seconds;
         const offset = maybe_offset ?? 0;
 
-        this.to_gain.schedule(time_coordinate, offset as Seconds);
+        this.to_gain.play(wait, offset as Seconds);
 
         const gain = this.gain_node.gain;
 
@@ -465,12 +472,12 @@ class CompiledGain<
                 }
             })();
 
-            value_changer(value, Math.max(0, (time_coordinate + when) - offset));
+            value_changer(value, Math.max(0, ((wait ?? 0) + when) - offset));
         }
     }
 
-    cancel(time_coordinate: Seconds): void {
-        this.to_gain.cancel(time_coordinate);
+    stop(maybe_wait?: Seconds): void {
+        this.to_gain.stop(maybe_wait);
     }
 
     async compile(context: AudioContext, output_node: OutputNode): Promise<CompiledGain<OutputNode, Child>> {
@@ -490,8 +497,25 @@ class CompiledGain<
     }
 }
 
+class Player {
+    readonly context: AudioContext;
+
+    constructor(context?: AudioContext) {
+        this.context = context ?? new AudioContext();
+    }
+
+    load<
+        CompileTo extends CompiledAudioCommand<AudioDestinationNode, CompileTo>,
+        Command extends AudioCommand<AudioDestinationNode, CompileTo>
+    >(command: Command): Promise<CompileTo> {
+        const context = this.context;
+        return command.compile(context, context.destination);
+    }
+}
+
 export {
     type Seconds,
+    Player,
     Play,
     CompiledPlay,
     Clip,

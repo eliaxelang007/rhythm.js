@@ -5,7 +5,7 @@
   "description": "This library is a wrapper around the Web Audio API that (hopefully) makes interacting with it much more intuitive!",
   "main": "dist/soundtrack.js",
   "module": "dist/soundtrack.esm.js",
-  "types": "dist/index.d.ts",
+  "types": "dist/soundtrack.d.ts",
   "scripts": {
     "build": "rollup -c"
   },
