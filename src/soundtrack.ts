@@ -380,7 +380,7 @@ class Gain<
     Child extends AudioCommand<ChildCompileTo>
 > implements AudioCommand<CompiledGain<ChildCompileTo>> {
     constructor(
-        readonly command: Child,
+        readonly to_gain: Child,
         readonly gain_commands: GainCommand[]
     ) { }
 
@@ -390,7 +390,7 @@ class Gain<
         return new CompiledGain(
             gain_node,
             output_node,
-            await this.command.compile(gain_node),
+            await this.to_gain.compile(gain_node),
             this.gain_commands
         );
     }
