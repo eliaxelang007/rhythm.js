@@ -38,9 +38,7 @@ interface CompiledAudioCommand<
     AudioCommand<Self> { }
 
 class Play implements AudioCommand<CompiledPlay> {
-    constructor(readonly path: string) {
-        this.path = path;
-    }
+    constructor(readonly path: string) { }
 
     async compile(
         output_node: AudioNode
@@ -62,8 +60,6 @@ class CompiledPlay implements CompiledAudioCommand<CompiledPlay> {
         readonly output_node: AudioNode,
         readonly buffer: AudioBuffer
     ) {
-        this.output_node = output_node;
-        this.buffer = buffer;
         this.duration = buffer.duration as Seconds;
     }
 
@@ -258,11 +254,7 @@ type AnyCompiledCommand = CompiledAudioCommand<any>;
 type AnyCommand = AudioCommand<AnyCompiledCommand>;
 
 class Sequence implements AudioCommand<CompiledSequence> {
-    readonly sequence: AnyCommand[];
-
-    constructor(sequence: AnyCommand[]) {
-        this.sequence = sequence;
-    }
+    constructor(readonly sequence: AnyCommand[]) { }
 
     async compile(
         output_node: AudioNode
