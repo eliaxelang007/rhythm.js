@@ -19,7 +19,7 @@
 </body>
 
 <script type="module">
-    import { Player, Clip, Play } from "../dist/soundtrack.esm.js";
+    import { Loader, Clip, Play } from "../dist/soundtrack.esm.js";
 
     // const player = new Player(
     //     new Clip(
@@ -48,10 +48,26 @@
         // compiled.schedule();
 
         async function play() {
-            const play_command = new Player(new Play("./celery_in_a_carrot_field.mp3"));
-            const audio_track = await play_command.compile();
+            console.log("1");
+            const loader = new Loader();
+            console.log("2");
+            const audio_track = await loader.load(new Clip(new Play("./celery_in_a_carrot_field.ogg"), 0, 10));
+            console.log("3");
 
-            audio_track.play();
+            console.log(audio_track);
+
+            console.log("eh1?");
+            const playing = audio_track.schedule_play();
+            console.log("eh?");
+
+            playing.schedule_stop(5);
+
+            // setTimeout(
+            //     () => {
+            //         playing.schedule_stop();
+            //     },
+            //     2000
+            // );
         }
 
         play();

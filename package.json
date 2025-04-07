@@ -15,12 +15,15 @@
   },
   "keywords": [
     "audio",
-    "api",
-    "web-audio-api",
-    "track",
-    "sound"
+    "sound",
+    "web audio",
+    "webaudio",
+    "browser",
+    "html5",
+    "html5 audio",
+    "web audio api"
   ],
-  "author": "Elijah Axel L. Ang",
+  "author": "eliaxelang007",
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/eliaxelang007/soundtrack.js/issues"

@@ -78,8 +78,9 @@ async function play() {
 play();
 ```
 
-The `Repeat` node will repeat the`[Clip` inside of it for 20 seconds.
-Play one command after another with [Sequence]!
+The `Repeat` node will repeat the`Clip` inside of it for 20 seconds.
+
+Play one command after another with `Sequence`!
 
 ```javascript
 import { Player, Play, Clip, Repeat } from "soundtrack.esm.js";
