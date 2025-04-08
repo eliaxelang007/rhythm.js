@@ -11,12 +11,14 @@ To play a track with soundtrack.js, use the following code!
 import { Player, Play } from "../dist/soundtrack.esm.js";
 
 async function play() {
-  const player = new Player(/* new AudioCommand() [You can optionally provide an AudioContext] */);
+  const context = new SoundtrackContext(/* new AudioContext() [You can optionally provide an AudioContext] */);
   const command = new Play("./celery_in_a_carrot_field.mp3");
 
-  const audio_track = await player.load(command);
+  const track = await context.load(command);
 
-  audio_track.play();
+  track.schedule_play(
+    context.current_time + 2
+  );
 }
 
 play();

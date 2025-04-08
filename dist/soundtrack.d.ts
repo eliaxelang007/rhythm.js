@@ -34,16 +34,16 @@ declare class CompiledPlay implements CompiledAudioCommand<CompiledPlay> {
 }
 declare class Clip<ChildCompileTo extends CompiledAudioCommand<ChildCompileTo>, Child extends AudioCommand<ChildCompileTo>> implements AudioCommand<CompiledClip<ChildCompileTo>> {
     readonly to_clip: Child;
-    readonly offset: Seconds;
     readonly duration: Seconds;
-    constructor(to_clip: Child, offset: Seconds, duration: Seconds);
+    readonly offset: Seconds;
+    constructor(to_clip: Child, duration: Seconds, offset?: Seconds);
     compile(output_node: AudioNode): Promise<CompiledClip<ChildCompileTo>>;
 }
 declare class CompiledClip<CompiledChild extends CompiledAudioCommand<CompiledChild>> implements CompiledAudioCommand<CompiledClip<CompiledChild>> {
-    readonly command: CompiledChild;
-    readonly offset: Seconds;
+    readonly to_clip: CompiledChild;
     readonly duration: Seconds;
-    constructor(command: CompiledChild, offset: Seconds, duration: Seconds);
+    readonly offset: Seconds;
+    constructor(to_clip: CompiledChild, duration: Seconds, offset?: Seconds);
     get output_node(): AudioNode;
     schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): Stoppable;
     compile(output_node: AudioNode): Promise<CompiledClip<CompiledChild>>;
@@ -55,9 +55,9 @@ declare class Repeat<ChildCompileTo extends CompiledAudioCommand<ChildCompileTo>
     compile(output_node: AudioNode): Promise<CompiledRepeat<ChildCompileTo>>;
 }
 declare class CompiledRepeat<CompiledChild extends CompiledAudioCommand<CompiledChild>> implements CompiledAudioCommand<CompiledRepeat<CompiledChild>> {
-    readonly command: CompiledChild;
+    readonly to_repeat: CompiledChild;
     readonly duration: Seconds;
-    constructor(command: CompiledChild, duration: Seconds);
+    constructor(to_repeat: CompiledChild, duration: Seconds);
     get output_node(): AudioNode;
     schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): Stoppable;
     compile(output_node: AudioNode): Promise<CompiledRepeat<CompiledChild>>;
@@ -71,22 +71,22 @@ declare class Sequence implements AudioCommand<CompiledSequence> {
 }
 declare class CompiledSequence implements CompiledAudioCommand<CompiledSequence> {
     readonly output_node: AudioNode;
-    readonly commands: AnyCompiledCommand[];
+    readonly sequence: AnyCompiledCommand[];
     readonly duration: Seconds;
-    constructor(output_node: AudioNode, commands: AnyCompiledCommand[]);
+    constructor(output_node: AudioNode, sequence: AnyCompiledCommand[]);
     schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): Stoppable;
     compile(output_node: AudioNode): Promise<CompiledSequence>;
 }
 type AudioParamTransition = undefined | "exponential" | "linear";
 type GainCommand = {
-    transition?: AudioParamTransition;
+    transition: AudioParamTransition;
     value: number;
     when_from_start: Seconds;
 };
 declare class Gain<ChildCompileTo extends CompiledAudioCommand<ChildCompileTo>, Child extends AudioCommand<ChildCompileTo>> implements AudioCommand<CompiledGain<ChildCompileTo>> {
-    readonly command: Child;
+    readonly to_gain: Child;
     readonly gain_commands: GainCommand[];
-    constructor(command: Child, gain_commands: GainCommand[]);
+    constructor(to_gain: Child, gain_commands: GainCommand[]);
     compile(output_node: AudioNode): Promise<CompiledGain<ChildCompileTo>>;
 }
 declare class CompiledGain<CompiledChild extends CompiledAudioCommand<CompiledChild>> implements CompiledAudioCommand<CompiledGain<CompiledChild>> {

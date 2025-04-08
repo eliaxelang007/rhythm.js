@@ -106,8 +106,8 @@ class Clip<
 > implements AudioCommand<CompiledClip<ChildCompileTo>> {
     constructor(
         readonly to_clip: Child,
-        readonly offset: Seconds,
-        readonly duration: Seconds
+        readonly duration: Seconds,
+        readonly offset: Seconds = (0 as Seconds)
     ) { }
 
     async compile(
@@ -115,8 +115,8 @@ class Clip<
     ): Promise<CompiledClip<ChildCompileTo>> {
         return new CompiledClip(
             await this.to_clip.compile(output_node),
-            this.offset,
-            this.duration
+            this.duration,
+            this.offset
         );
     }
 }
@@ -126,8 +126,8 @@ class CompiledClip<
 > implements CompiledAudioCommand<CompiledClip<CompiledChild>> {
     constructor(
         readonly to_clip: CompiledChild,
-        readonly offset: Seconds,
-        readonly duration: Seconds
+        readonly duration: Seconds,
+        readonly offset: Seconds = (0 as Seconds)
     ) {
     }
 
@@ -156,8 +156,8 @@ class CompiledClip<
 
         return new CompiledClip(
             await this.to_clip.compile(output_node),
-            this.offset,
-            this.duration
+            this.duration,
+            this.offset
         );
     }
 }
@@ -362,7 +362,7 @@ class CompiledSequence implements CompiledAudioCommand<CompiledSequence> {
 type AudioParamTransition = undefined | "exponential" | "linear";
 
 type GainCommand = {
-    transition?: AudioParamTransition;
+    transition: AudioParamTransition;
     value: number;
     when_from_start: Seconds;
 };
@@ -419,27 +419,32 @@ class CompiledGain<
             const value_changer = (() => {
                 switch (transition) {
                     case undefined: {
-                        return gain.setValueAtTime;
+                        return (value: number, start_time: number) => gain.setValueAtTime(value, start_time);
                     }
 
                     case "exponential": {
-                        return gain.exponentialRampToValueAtTime;
+                        return (value: number, start_time: number) => gain.exponentialRampToValueAtTime(value, start_time);
                     }
 
                     case "linear": {
-                        return gain.linearRampToValueAtTime;
+                        return (value: number, start_time: number) => gain.linearRampToValueAtTime(value, start_time);
                     }
                 }
             })();
 
-            value_changer(value, Math.max(0, (start_time + when_from_start) - offset));
+            const a = value;
+            const b = Math.max(0, (start_time + when_from_start) - offset);
+
+            console.log(transition, a, b);
+
+            value_changer(a, b);
         }
 
         return {
             schedule_stop: (stop_at?: TimeCoordinate) => {
                 const stop_time = pinpoint(stop_at, context.currentTime);
 
-                scheduled.schedule_stop(play_at);
+                scheduled.schedule_stop(stop_at);
 
                 gain.cancelScheduledValues(stop_time);
                 gain.setValueAtTime(original_value, stop_time);

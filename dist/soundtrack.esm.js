@@ -6,7 +6,6 @@ class Play {
     path;
     constructor(path) {
         this.path = path;
-        this.path = path;
     }
     async compile(output_node) {
         const response = await fetch(this.path);
@@ -21,8 +20,6 @@ class CompiledPlay {
     buffer;
     duration;
     constructor(output_node, buffer) {
-        this.output_node = output_node;
-        this.buffer = buffer;
         this.output_node = output_node;
         this.buffer = buffer;
         this.duration = buffer.duration;
@@ -56,33 +53,33 @@ class CompiledPlay {
 }
 class Clip {
     to_clip;
-    offset;
     duration;
-    constructor(to_clip, offset, duration) {
+    offset;
+    constructor(to_clip, duration, offset = 0) {
         this.to_clip = to_clip;
-        this.offset = offset;
         this.duration = duration;
+        this.offset = offset;
     }
     async compile(output_node) {
-        return new CompiledClip(await this.to_clip.compile(output_node), this.offset, this.duration);
+        return new CompiledClip(await this.to_clip.compile(output_node), this.duration, this.offset);
     }
 }
 class CompiledClip {
-    command;
-    offset;
+    to_clip;
     duration;
-    constructor(command, offset, duration) {
-        this.command = command;
-        this.offset = offset;
+    offset;
+    constructor(to_clip, duration, offset = 0) {
+        this.to_clip = to_clip;
         this.duration = duration;
+        this.offset = offset;
     }
     get output_node() {
-        return this.command.output_node;
+        return this.to_clip.output_node;
     }
     schedule_play(play_at, maybe_offset) {
         const start_time = pinpoint(play_at, this.output_node.context.currentTime);
         const offset = maybe_offset ?? 0;
-        const command = this.command;
+        const command = this.to_clip;
         const scheduled = command.schedule_play(start_time, (this.offset + offset));
         scheduled.schedule_stop((start_time + (this.duration - offset)));
         return scheduled;
@@ -91,7 +88,7 @@ class CompiledClip {
         if (this.output_node === output_node) {
             return this;
         }
-        return new CompiledClip(await this.command.compile(output_node), this.offset, this.duration);
+        return new CompiledClip(await this.to_clip.compile(output_node), this.duration, this.offset);
     }
 }
 class Repeat {
@@ -106,18 +103,18 @@ class Repeat {
     }
 }
 class CompiledRepeat {
-    command;
+    to_repeat;
     duration;
-    constructor(command, duration) {
-        this.command = command;
+    constructor(to_repeat, duration) {
+        this.to_repeat = to_repeat;
         this.duration = duration;
     }
     get output_node() {
-        return this.command.output_node;
+        return this.to_repeat.output_node;
     }
     schedule_play(play_at, maybe_offset) {
         const offset = maybe_offset ?? 0;
-        const command = this.command;
+        const command = this.to_repeat;
         const command_duration = command.duration;
         const duration = this.duration;
         const context = this.output_node.context;
@@ -150,7 +147,7 @@ class CompiledRepeat {
         if (this.output_node === output_node) {
             return this;
         }
-        return new CompiledRepeat(await this.command.compile(output_node), this.duration);
+        return new CompiledRepeat(await this.to_repeat.compile(output_node), this.duration);
     }
 }
 class Sequence {
@@ -164,12 +161,12 @@ class Sequence {
 }
 class CompiledSequence {
     output_node;
-    commands;
+    sequence;
     duration;
-    constructor(output_node, commands) {
+    constructor(output_node, sequence) {
         this.output_node = output_node;
-        this.commands = commands;
-        this.duration = commands
+        this.sequence = sequence;
+        this.duration = sequence
             .map((command) => command.duration)
             .reduce((total_duration, duration) => total_duration + duration, 0);
     }
@@ -177,7 +174,7 @@ class CompiledSequence {
         const context = this.output_node.context;
         const start_time = pinpoint(play_at, context.currentTime);
         let offset = (maybe_offset ?? 0);
-        const iterator = this.commands.values();
+        const iterator = this.sequence.values();
         let next_start_time = 0;
         const sequenced = [];
         while (true) {
@@ -216,21 +213,19 @@ class CompiledSequence {
         if (this.output_node === output_node) {
             return this;
         }
-        return new CompiledSequence(this.output_node, await Promise.all(this.commands.map((command) => command.compile(output_node))));
+        return new CompiledSequence(this.output_node, await Promise.all(this.sequence.map((command) => command.compile(output_node))));
     }
 }
 class Gain {
-    command;
+    to_gain;
     gain_commands;
-    constructor(command, gain_commands) {
-        this.command = command;
-        this.gain_commands = gain_commands;
-        this.command = command;
+    constructor(to_gain, gain_commands) {
+        this.to_gain = to_gain;
         this.gain_commands = gain_commands;
     }
     async compile(output_node) {
         const gain_node = output_node.context.createGain();
-        return new CompiledGain(gain_node, output_node, await this.command.compile(gain_node), this.gain_commands);
+        return new CompiledGain(gain_node, output_node, await this.to_gain.compile(gain_node), this.gain_commands);
     }
 }
 class CompiledGain {
@@ -259,22 +254,25 @@ class CompiledGain {
             const value_changer = (() => {
                 switch (transition) {
                     case undefined: {
-                        return gain.setValueAtTime;
+                        return (value, start_time) => gain.setValueAtTime(value, start_time);
                     }
                     case "exponential": {
-                        return gain.exponentialRampToValueAtTime;
+                        return (value, start_time) => gain.exponentialRampToValueAtTime(value, start_time);
                     }
                     case "linear": {
-                        return gain.linearRampToValueAtTime;
+                        return (value, start_time) => gain.linearRampToValueAtTime(value, start_time);
                     }
                 }
             })();
-            value_changer(value, Math.max(0, (start_time + when_from_start) - offset));
+            const a = value;
+            const b = Math.max(0, (start_time + when_from_start) - offset);
+            console.log(transition, a, b);
+            value_changer(a, b);
         }
         return {
             schedule_stop: (stop_at) => {
                 const stop_time = pinpoint(stop_at, context.currentTime);
-                scheduled.schedule_stop(play_at);
+                scheduled.schedule_stop(stop_at);
                 gain.cancelScheduledValues(stop_time);
                 gain.setValueAtTime(original_value, stop_time);
             },

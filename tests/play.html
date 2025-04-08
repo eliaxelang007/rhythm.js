@@ -8,66 +8,96 @@
     <style>
         html,
         body {
+            margin: 0;
             width: 100%;
             height: 100%;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
     </style>
 </head>
 
 <body>
-    <h1></h1>
+    <h1>Click in this document to start playing the music!</h1>
 </body>
 
 <script type="module">
-    import { Loader, Clip, Play } from "../dist/soundtrack.esm.js";
+    import { SoundtrackContext, Sequence, Clip, Gain, Play } from "../dist/soundtrack.esm.js";
 
-    // const player = new Player(
-    //     new Clip(
-    //         new Play("./15.oga"),
-    //         0,
-    //         60
-    //     )
-    // );
-
-    // let compiled = null;
-
-    // async function load() {
-    //     compiled = await player.compile();
-    // }
-
-    // load();
+    let context = null;
 
     document.body.onclick = (_) => {
-        // if (compiled === null) {
-        //     console.log("Loading...");
-        //     return;
-        // }
+        if (context !== null) return;
 
-        // console.log(compiled);
-        // console.log("Playing!");
-        // compiled.schedule();
+        context = new SoundtrackContext();
 
         async function play() {
-            console.log("1");
-            const loader = new Loader();
-            console.log("2");
-            const audio_track = await loader.load(new Clip(new Play("./celery_in_a_carrot_field.ogg"), 0, 10));
-            console.log("3");
+            console.log("Compiling audio commands...");
 
-            console.log(audio_track);
+            const clipped_song = await context.load(
+                new Clip(
+                    new Play(
+                        "./celery_in_a_carrot_field.ogg"
+                    ),
+                    20
+                )
+            );
 
-            console.log("eh1?");
-            const playing = audio_track.schedule_play();
-            console.log("eh?");
+            const fade_in_out = new Gain(
+                clipped_song,
+                [
+                    {
+                        value: 0.01,
+                        when_from_start: 0
+                    },
+                    {
+                        transition: "exponential",
+                        value: 1,
+                        when_from_start: 5
+                    },
+                    {
+                        value: 1,
+                        when_from_start: clipped_song.duration - 5
+                    },
+                    {
+                        transition: "exponential",
+                        value: 0.01,
+                        when_from_start: clipped_song.duration - 0.01
+                    },
+                    {
+                        value: 0,
+                        when_from_start: clipped_song.duration
+                    },
+                ]
+            );
 
-            playing.schedule_stop(5);
+            const track = await context.load(new Sequence(
+                [
+                    fade_in_out,
+                    fade_in_out
+                ]
+            ));
 
-            // setTimeout(
-            //     () => {
-            //         playing.schedule_stop();
-            //     },
-            //     2000
-            // );
+            console.log(`Audio commands compiled into a track! ${track}`);
+
+            console.log("Starting timer...");
+
+            let seconds = 1;
+
+            setInterval(
+                () => {
+                    console.log(seconds);
+                    seconds += 1;
+                },
+                1000
+            );
+
+            console.log("Playing audio...");
+            const playing_track_instance = track.schedule_play(0, 19.9);
         }
 
         play();
