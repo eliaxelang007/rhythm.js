@@ -43,8 +43,8 @@ and finally play it!
 track.schedule_play();
 ```
 
-You can schedule the track at a different time by supplying it the first parameter, <br/>
-and you can specify the offset in the second parameter to specify where the audio playback should begin. 
+You can schedule the track at a different time by supplying it as the first parameter, <br/>
+and you can specify where the audio playback should begin in the second parameter.
 
 (Works just like [`AudioBufferSourceNode.start`](https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode/start) but without the third `duration` parameter!)
 
