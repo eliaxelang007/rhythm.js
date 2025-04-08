@@ -28,17 +28,17 @@
 <script type="module">
     import { RhythmContext, Repeat, Sequence, Clip, Gain, Play } from "../dist/rhythm.esm.js";
 
-    let context = null;
+    let rhythm = null;
 
     document.body.onclick = (_) => {
-        if (context !== null) return;
+        if (rhythm !== null) return;
 
-        context = new RhythmContext();
+        rhythm = new RhythmContext();
 
         async function play() {
             console.log("Compiling audio commands...");
 
-            const clipped_song = await context.load(
+            const clipped_song = await rhythm.compile(
                 new Clip(
                     new Play(
                         "./celery_in_a_carrot_field.ogg"
@@ -75,7 +75,7 @@
                 ]
             );
 
-            const track = await context.load(
+            const track = await rhythm.compile(
                 new Repeat(
                     new Sequence(
                         [
