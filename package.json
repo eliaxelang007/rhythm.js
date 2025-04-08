@@ -1,14 +1,14 @@
 {
   "type": "module",
   "name": "rhythm.js",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "description": "This library is a wrapper around the Web Audio API that (hopefully) makes interacting with it much more intuitive!",
   "main": "dist/rhythm.js",
   "module": "dist/rhythm.esm.js",
   "types": "dist/rhythm.d.ts",
   "scripts": {
     "build": "rollup -c",
-    "publish": "npm run build && npm publish"
+    "publish": "npm run build"
   },
   "repository": {
     "type": "git",
