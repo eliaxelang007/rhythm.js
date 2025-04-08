@@ -3,8 +3,9 @@
 ## Description
 [rhythm.js](https://github.com/eliaxelang007/rhythm.js/tree/main) is a relatively thin wrapper around the Web AudioAPI that (hopefully) makes interacting with it a lot more intuitive!
 
-The whole library is built around the concepts of **Audio Commands** and **Audio Tracks**. <br/>
-You can **nest audio commands inside other audio commands** to get more complex behavior!
+The whole library is built around the concepts of **Audio Commands** and **Compiled Audio Commands**. <br/>
+You can **nest audio commands inside other audio commands** to get more complex behavior! <br/>
+And, you can treat **Compiled Audio Commands** just like uncompiled ones!
 
 It's like Google's **Flutter** but for audio manipulation.
 
@@ -26,34 +27,84 @@ Here's a list of the currently available audio commands.
 
 First make a command,
 
-```javascript
-const some_command = new Repeat(new Clip(new Play("example.mp3"), 10, 5), 20);
+```typescript
+const some_command = new Repeat(
+    new Clip(
+        new Play("example.mp3"), 
+        10, // Play 10 seconds 
+        5   // starting 5 seconds into my child command.
+    ), 
+    20 // Repeat my child command for 20 seconds.
+);
 ```
 
 compile it into a track,
 
-```javascript
+```typescript
 const rhythm = new RhythmContext(/* new AudioContext() [You can optionally provide an AudioContext] */);
 const track = await rhythm.compile(some_command);
 ```
 
 and finally play it!
 
-```javascript
+```typescript
 track.schedule_play();
 ```
 
-You can schedule the track at a different time by supplying it as the first parameter, <br/>
-and you can specify where the audio playback should begin in the second parameter.
+`schedule_play` works just like [`AudioBufferSourceNode.start`](https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode/start), but you can call it multiple times, and it doesn't have the third `duration` parameter.
 
-(Works just like [`AudioBufferSourceNode.start`](https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode/start) but without the third `duration` parameter!)
-
-```javascript
+```typescript
 // Starts the track 1 second from now with playback beginning at 3 seconds into the track.
 track.schedule_play(rhythm.current_time + 1, 3); 
 ```
 
-Note: `rhythm.current_time` is an alias for the `currentTime` of the `RhythmContext`'s inner `AudioContext`.
+> `rhythm.current_time` is an alias for the `currentTime` of the `RhythmContext`'s inner `AudioContext`.
+
+Each time you call play, it gives you a handle to the scheduled instance of the track. `schedule_stop` works just like [`AudioScheduledSourceNode.stop`](https://developer.mozilla.org/en-US/docs/Web/API/AudioScheduledSourceNode/stop).
+
+```typescript
+const now = rhythm.current_time;
+const scheduled = track.schedule_play(now);
+
+scheduled.schedule_stop(now + 2); // Stops the track 2 seconds after it starts.
+```
+
+You can also determine how far the current time is from when you scheduled a play with `time_from_start`.
+
+```typescript
+const scheduled = track.schedule_play();
+
+// Wait 2 seconds...
+
+schedule.time_from_start() // Should return 2.
+```
+> `time_from_start` can return negative values if you call it before the start time you specified in `schedule_play`
+
+---
+
+Once a command is compiled, you have access to its duration.
+
+```typescript
+track.duration
+```
+
+That's useful because you can ***treat compiled audio commands just like uncompiled audio commands*** which is one of the core tenets of rhythm.js.
+
+You can see an example of this in the code snippet below.
+
+```typescript
+const track = await rhythm.compile(new Play("example.mp3"));
+
+const new_track = await rhythm.compile(
+  new Repeat(
+    track,
+    track.duration * 2 // Repeat the track twice.
+  )
+);
+```
+> Loading audio tracks happens in the compilation stage, and since the `Play` inside `track` has already been compiled, the second `await rhythm.compile` here runs almost instantly!
+
+You can get a lot more complex with this tenet, try it out!
 
 ## Examples
 
@@ -61,7 +112,7 @@ Note: `rhythm.current_time` is an alias for the `currentTime` of the `RhythmCont
 
 To play a track with rhythm.js, try this!
 
-```javascript
+```typescript
 import { RhythmContext, Play } from "../dist/rhythm.esm.js";
 
 async function play() {
@@ -83,7 +134,7 @@ To create a clip of a certain section of a track, do this!
 In this code snippet, `Clip` will create a track that starts 5 seconds 
 into its child node, `Play`, and then plays its next 10 seconds.
 
-```javascript
+```typescript
 import { RhythmContext, Play, Clip } from "../dist/rhythm.esm.js";
 
 async function play() {
@@ -108,9 +159,9 @@ play();
 ### Repeat
 
 To repeat a track, do this!
-In this code snippet, the `Repeat` node will keep repeating the`Clip` node inside it while it hasn't been 20 seconds yet.
+In this code snippet, the `Repeat` node will keep repeating the `Clip` node inside it while it hasn't been 20 seconds yet.
 
-```javascript
+```typescript
 import { RhythmContext, Play, Clip } from "../dist/rhythm.esm.js";
 
 async function play() {

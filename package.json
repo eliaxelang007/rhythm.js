@@ -7,8 +7,7 @@
   "module": "dist/rhythm.esm.js",
   "types": "dist/rhythm.d.ts",
   "scripts": {
-    "build": "rollup -c",
-    "publish": "npm run build"
+    "build": "rollup -c"
   },
   "repository": {
     "type": "git",
