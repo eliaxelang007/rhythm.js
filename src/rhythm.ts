@@ -26,16 +26,14 @@ interface Outputter {
 }
 
 interface AudioCommand<
-    CompileTo extends CompiledAudioCommand<CompileTo>,
+    CompileTo extends CompiledAudioCommand,
 > {
     compile(output_node: AudioNode): Promise<CompileTo>;
 }
 
-interface CompiledAudioCommand<
-    Self extends CompiledAudioCommand<Self>,
-> extends Playable,
-    Outputter,
-    AudioCommand<Self> { }
+interface CompiledAudioCommand extends Playable, Outputter, AudioCommand<CompiledAudioCommand> { }
+
+type AnyCommand = AudioCommand<CompiledAudioCommand>;
 
 class Play implements AudioCommand<CompiledPlay> {
     constructor(readonly path: string) { }
@@ -53,7 +51,7 @@ class Play implements AudioCommand<CompiledPlay> {
     }
 }
 
-class CompiledPlay implements CompiledAudioCommand<CompiledPlay> {
+class CompiledPlay implements CompiledAudioCommand {
     readonly duration: Seconds;
 
     constructor(
@@ -100,19 +98,16 @@ class CompiledPlay implements CompiledAudioCommand<CompiledPlay> {
     }
 }
 
-class Clip<
-    ChildCompileTo extends CompiledAudioCommand<ChildCompileTo>,
-    Child extends AudioCommand<ChildCompileTo>
-> implements AudioCommand<CompiledClip<ChildCompileTo>> {
+class Clip implements AudioCommand<CompiledClip> {
     constructor(
-        readonly to_clip: Child,
+        readonly to_clip: AnyCommand,
         readonly duration: Seconds,
         readonly offset: Seconds = (0 as Seconds)
     ) { }
 
     async compile(
         output_node: AudioNode
-    ): Promise<CompiledClip<ChildCompileTo>> {
+    ): Promise<CompiledClip> {
         return new CompiledClip(
             await this.to_clip.compile(output_node),
             this.duration,
@@ -121,11 +116,9 @@ class Clip<
     }
 }
 
-class CompiledClip<
-    CompiledChild extends CompiledAudioCommand<CompiledChild>
-> implements CompiledAudioCommand<CompiledClip<CompiledChild>> {
+class CompiledClip implements CompiledAudioCommand {
     constructor(
-        readonly to_clip: CompiledChild,
+        readonly to_clip: CompiledAudioCommand,
         readonly duration: Seconds,
         readonly offset: Seconds = (0 as Seconds)
     ) {
@@ -149,7 +142,7 @@ class CompiledClip<
 
     async compile(
         output_node: AudioNode
-    ): Promise<CompiledClip<CompiledChild>> {
+    ): Promise<CompiledClip> {
         if (this.output_node === output_node) {
             return this;
         }
@@ -163,18 +156,15 @@ class CompiledClip<
 }
 
 
-class Repeat<
-    ChildCompileTo extends CompiledAudioCommand<ChildCompileTo>,
-    Child extends AudioCommand<ChildCompileTo>
-> implements AudioCommand<CompiledRepeat<ChildCompileTo>> {
+class Repeat implements AudioCommand<CompiledRepeat> {
     constructor(
-        readonly to_repeat: Child,
+        readonly to_repeat: AnyCommand,
         readonly duration: Seconds
     ) { }
 
     async compile(
         output_node: AudioNode
-    ): Promise<CompiledRepeat<ChildCompileTo>> {
+    ): Promise<CompiledRepeat> {
         return new CompiledRepeat(
             await this.to_repeat.compile(output_node),
             this.duration
@@ -182,11 +172,9 @@ class Repeat<
     }
 }
 
-class CompiledRepeat<
-    CompiledChild extends CompiledAudioCommand<CompiledChild>
-> implements CompiledAudioCommand<CompiledRepeat<CompiledChild>> {
+class CompiledRepeat implements CompiledAudioCommand {
     constructor(
-        readonly to_repeat: CompiledChild,
+        readonly to_repeat: CompiledAudioCommand,
         readonly duration: Seconds
     ) { }
 
@@ -238,7 +226,7 @@ class CompiledRepeat<
 
     async compile(
         output_node: AudioNode
-    ): Promise<CompiledRepeat<CompiledChild>> {
+    ): Promise<CompiledRepeat> {
         if (this.output_node === output_node) {
             return this;
         }
@@ -249,9 +237,6 @@ class CompiledRepeat<
         );
     }
 }
-
-type AnyCompiledCommand = CompiledAudioCommand<any>;
-type AnyCommand = AudioCommand<AnyCompiledCommand>;
 
 class Sequence implements AudioCommand<CompiledSequence> {
     constructor(readonly sequence: AnyCommand[]) { }
@@ -270,12 +255,12 @@ class Sequence implements AudioCommand<CompiledSequence> {
     }
 }
 
-class CompiledSequence implements CompiledAudioCommand<CompiledSequence> {
+class CompiledSequence implements CompiledAudioCommand {
     readonly duration: Seconds;
 
     constructor(
         readonly output_node: AudioNode,
-        readonly sequence: AnyCompiledCommand[],
+        readonly sequence: CompiledAudioCommand[],
     ) {
         this.duration = sequence
             .map((command) => command.duration)
@@ -367,16 +352,13 @@ type GainCommand = {
     when_from_start: Seconds;
 };
 
-class Gain<
-    ChildCompileTo extends CompiledAudioCommand<ChildCompileTo>,
-    Child extends AudioCommand<ChildCompileTo>
-> implements AudioCommand<CompiledGain<ChildCompileTo>> {
+class Gain implements AudioCommand<CompiledGain> {
     constructor(
-        readonly to_gain: Child,
+        readonly to_gain: AnyCommand,
         readonly gain_commands: GainCommand[]
     ) { }
 
-    async compile(output_node: AudioNode): Promise<CompiledGain<ChildCompileTo>> {
+    async compile(output_node: AudioNode): Promise<CompiledGain> {
         const gain_node = output_node.context.createGain();
 
         return new CompiledGain(
@@ -388,9 +370,7 @@ class Gain<
     }
 }
 
-class CompiledGain<
-    CompiledChild extends CompiledAudioCommand<CompiledChild>
-> implements CompiledAudioCommand<CompiledGain<CompiledChild>> {
+class CompiledGain implements CompiledAudioCommand {
     get duration(): Seconds {
         return this.to_gain.duration;
     }
@@ -398,7 +378,7 @@ class CompiledGain<
     constructor(
         readonly gain_node: GainNode,
         readonly output_node: AudioNode,
-        readonly to_gain: CompiledChild,
+        readonly to_gain: CompiledAudioCommand,
         readonly gain_commands: GainCommand[],
     ) {
         gain_node.connect(output_node);
@@ -450,7 +430,7 @@ class CompiledGain<
         };
     }
 
-    async compile(other_output_node: AudioNode): Promise<CompiledGain<CompiledChild>> {
+    async compile(other_output_node: AudioNode): Promise<CompiledGain> {
         if (this.output_node === other_output_node) {
             return this;
         }
@@ -473,10 +453,7 @@ class RhythmContext {
         this.context = context ?? new AudioContext();
     }
 
-    compile<
-        CompileTo extends CompiledAudioCommand<CompileTo>,
-        Command extends AudioCommand<CompileTo>
-    >(command: Command): Promise<CompileTo> {
+    compile(command: AnyCommand): Promise<CompiledAudioCommand> {
         return command.compile(this.context.destination);
     }
 
