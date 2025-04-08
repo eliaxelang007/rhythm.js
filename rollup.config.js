@@ -1,15 +1,15 @@
 import typescript from '@rollup/plugin-typescript';
 
 export default {
-    input: 'src/soundtrack.ts',
+    input: 'src/rhythm.ts',
     output: [
         {
-            file: 'dist/soundtrack.js',
+            file: 'dist/rhythm.js',
             format: 'umd',
-            name: "Soundtrack"
+            name: "Rhythm"
         },
         {
-            file: 'dist/soundtrack.esm.js',
+            file: 'dist/rhythm.esm.js',
             format: 'esm',
         }
     ],

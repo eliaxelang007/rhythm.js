@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Soundtrack JS Tests</title>
+    <title>Rhythm JS Tests</title>
     <style>
         html,
         body {
@@ -26,14 +26,14 @@
 </body>
 
 <script type="module">
-    import { SoundtrackContext, Sequence, Clip, Gain, Play } from "../dist/soundtrack.esm.js";
+    import { RhythmContext, Sequence, Clip, Gain, Play } from "../dist/rhythm.esm.js";
 
     let context = null;
 
     document.body.onclick = (_) => {
         if (context !== null) return;
 
-        context = new SoundtrackContext();
+        context = new RhythmContext();
 
         async function play() {
             console.log("Compiling audio commands...");

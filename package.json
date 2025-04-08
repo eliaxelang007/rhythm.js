@@ -1,17 +1,17 @@
 {
   "type": "module",
-  "name": "soundtrack-js",
+  "name": "rhythm",
   "version": "0.0.1",
   "description": "This library is a wrapper around the Web Audio API that (hopefully) makes interacting with it much more intuitive!",
-  "main": "dist/soundtrack.js",
-  "module": "dist/soundtrack.esm.js",
-  "types": "dist/soundtrack.d.ts",
+  "main": "dist/rhythm.js",
+  "module": "dist/rhythm.esm.js",
+  "types": "dist/rhythm.d.ts",
   "scripts": {
     "build": "rollup -c"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/eliaxelang007/soundtrack.js.git"
+    "url": "git+https://github.com/eliaxelang007/rhythm.js.git"
   },
   "keywords": [
     "audio",
@@ -26,9 +26,9 @@
   "author": "eliaxelang007",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/eliaxelang007/soundtrack.js/issues"
+    "url": "https://github.com/eliaxelang007/rhythm.js/issues"
   },
-  "homepage": "https://github.com/eliaxelang007/soundtrack.js#readme",
+  "homepage": "https://github.com/eliaxelang007/rhythm.js#readme",
   "devDependencies": {
     "@rollup/plugin-typescript": "^12.1.2",
     "rollup": "^4.31.0",

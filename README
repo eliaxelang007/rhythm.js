@@ -1,17 +1,17 @@
-# Soundtrack.js!
+# Rhythm.js!
 
 # Description
-[soundtrack.js](https://github.com/eliaxelang007/soundtrack.js/tree/main) is a relatively thin wrapper around the Web AudioAPI that (hopefully) makes interacting with it a lot more intuitive!
+[rhythm.js](https://github.com/eliaxelang007/rhythm.js/tree/main) is a relatively thin wrapper around the Web AudioAPI that (hopefully) makes interacting with it a lot more intuitive!
 
 The whole library is built around the concepts of Tracks and Compilation.
 
-To play a track with soundtrack.js, use the following code!
+To play a track with rhythm.js, use the following code!
 
 ```javascript
-import { Player, Play } from "../dist/soundtrack.esm.js";
+import { Player, Play } from "../dist/rhythm.esm.js";
 
 async function play() {
-  const context = new SoundtrackContext(/* new AudioContext() [You can optionally provide an AudioContext] */);
+  const context = new RhythmContext(/* new AudioContext() [You can optionally provide an AudioContext] */);
   const command = new Play("./celery_in_a_carrot_field.mp3");
 
   const track = await context.load(command);
@@ -27,7 +27,7 @@ play();
 To clip a track, do this!
 
 ```javascript
-import { Player, Play, Clip } from "../dist/soundtrack.esm.js";
+import { Player, Play, Clip } from "../dist/rhythm.esm.js";
 
 async function play() {
   const player = new Player();
@@ -53,7 +53,7 @@ play();
 To repeat a track, do this!
 
 ```javascript
-import { Player, Play, Clip, Repeat } from "soundtrack.esm.js";
+import { Player, Play, Clip, Repeat } from "rhythm.esm.js";
 
 async function play() {
   const player = new Player();
@@ -85,7 +85,7 @@ The `Repeat` node will repeat the`Clip` inside of it for 20 seconds.
 Play one command after another with `Sequence`!
 
 ```javascript
-import { Player, Play, Clip, Repeat } from "soundtrack.esm.js";
+import { Player, Play, Clip, Repeat } from "rhythm.esm.js";
 
 async function play() {
   const player = new Player();

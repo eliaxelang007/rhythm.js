@@ -432,12 +432,7 @@ class CompiledGain<
                 }
             })();
 
-            const a = value;
-            const b = Math.max(0, (start_time + when_from_start) - offset);
-
-            console.log(transition, a, b);
-
-            value_changer(a, b);
+            value_changer(value, Math.max(0, (start_time + when_from_start) - offset));
         }
 
         return {
@@ -471,7 +466,7 @@ class CompiledGain<
     }
 }
 
-class SoundtrackContext {
+class RhythmContext {
     readonly context: AudioContext;
 
     constructor(context?: AudioContext) {
@@ -492,7 +487,7 @@ class SoundtrackContext {
 
 export {
     type Seconds,
-    SoundtrackContext,
+    RhythmContext,
     Play,
     CompiledPlay,
     Clip,
