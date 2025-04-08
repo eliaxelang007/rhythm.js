@@ -473,7 +473,7 @@ class RhythmContext {
         this.context = context ?? new AudioContext();
     }
 
-    load<
+    compile<
         CompileTo extends CompiledAudioCommand<CompileTo>,
         Command extends AudioCommand<CompileTo>
     >(command: Command): Promise<CompileTo> {

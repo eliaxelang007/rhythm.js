@@ -297,7 +297,7 @@
         constructor(context) {
             this.context = context ?? new AudioContext();
         }
-        load(command) {
+        compile(command) {
             return command.compile(this.context.destination);
         }
         get current_time() {

@@ -102,7 +102,7 @@ declare class CompiledGain<CompiledChild extends CompiledAudioCommand<CompiledCh
 declare class RhythmContext {
     readonly context: AudioContext;
     constructor(context?: AudioContext);
-    load<CompileTo extends CompiledAudioCommand<CompileTo>, Command extends AudioCommand<CompileTo>>(command: Command): Promise<CompileTo>;
+    compile<CompileTo extends CompiledAudioCommand<CompileTo>, Command extends AudioCommand<CompileTo>>(command: Command): Promise<CompileTo>;
     get current_time(): TimeCoordinate;
 }
 export { type Seconds, RhythmContext, Play, CompiledPlay, Clip, CompiledClip, Repeat, CompiledRepeat, Sequence, CompiledSequence, Gain, CompiledGain };
