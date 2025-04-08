@@ -26,7 +26,7 @@
 </body>
 
 <script type="module">
-    import { RhythmContext, Sequence, Clip, Gain, Play } from "../dist/rhythm.esm.js";
+    import { RhythmContext, Repeat, Sequence, Clip, Gain, Play } from "../dist/rhythm.esm.js";
 
     let context = null;
 
@@ -75,12 +75,17 @@
                 ]
             );
 
-            const track = await context.load(new Sequence(
-                [
-                    fade_in_out,
-                    fade_in_out
-                ]
-            ));
+            const track = await context.load(
+                new Repeat(
+                    new Sequence(
+                        [
+                            fade_in_out,
+                            fade_in_out
+                        ]
+                    ),
+                    50
+                )
+            );
 
             console.log(`Audio commands compiled into a track! ${track}`);
 
@@ -97,7 +102,7 @@
             );
 
             console.log("Playing audio...");
-            const playing_track_instance = track.schedule_play(0, 19.9);
+            const playing_track_instance = track.schedule_play();
         }
 
         play();
