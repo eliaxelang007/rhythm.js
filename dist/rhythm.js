@@ -289,6 +289,7 @@
                 return this;
             }
             const gain_node = other_output_node.context.createGain();
+            gain_node.connect(other_output_node);
             return new CompiledGain(gain_node, other_output_node, await this.to_gain.compile(gain_node), this.gain_commands);
         }
     }
