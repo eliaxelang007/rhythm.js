@@ -87,24 +87,24 @@ declare class CompiledSequence<ChildOutputNode extends AudioNode> implements Com
     dispose(): void;
 }
 type AudioParamTransition = undefined | "exponential" | "linear";
-type GainCommand = {
+type GainKeyframe = {
     transition: AudioParamTransition;
     value: number;
-    when_from_start: Seconds;
+    from_start: Seconds;
 };
 declare class Gain<OutputNode extends AudioNode, ChildScheduled extends Stoppable, CompiledChild extends CompiledAudioCommand<AudioNode, ChildScheduled, CompiledChild>, Child extends AudioCommand<AudioNode, ChildScheduled, CompiledChild>> implements AudioCommand<OutputNode, ScheduledCommand, CompiledGain<OutputNode, ChildScheduled, CompiledChild>> {
     readonly to_gain: Child;
-    readonly gain_commands: GainCommand[];
-    constructor(to_gain: Child, gain_commands: GainCommand[]);
+    readonly gain_keyframes: GainKeyframe[];
+    constructor(to_gain: Child, gain_keyframes: GainKeyframe[]);
     compile(output_node: OutputNode): Promise<CompiledGain<OutputNode, ChildScheduled, CompiledChild>>;
 }
 declare class CompiledGain<OutputNode extends AudioNode, ChildScheduled extends Stoppable, CompiledChild extends CompiledAudioCommand<AudioNode, ChildScheduled, CompiledChild>> implements CompiledAudioCommand<OutputNode, ScheduledCommand, CompiledGain<OutputNode, ChildScheduled, CompiledChild>> {
     readonly gain_node: GainNode;
     readonly output_node: OutputNode;
     readonly to_gain: CompiledChild;
-    readonly gain_commands: GainCommand[];
+    readonly gain_keyframes: GainKeyframe[];
     get duration(): Seconds;
-    constructor(gain_node: GainNode, output_node: OutputNode, to_gain: CompiledChild, gain_commands: GainCommand[]);
+    constructor(gain_node: GainNode, output_node: OutputNode, to_gain: CompiledChild, gain_keyframes: GainKeyframe[]);
     schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): Stoppable;
     compile(other_output_node: OutputNode): Promise<CompiledGain<OutputNode, ChildScheduled, CompiledChild>>;
     dispose(): void;

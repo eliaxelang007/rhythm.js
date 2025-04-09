@@ -236,29 +236,29 @@
     }
     class Gain {
         to_gain;
-        gain_commands;
-        constructor(to_gain, gain_commands) {
+        gain_keyframes;
+        constructor(to_gain, gain_keyframes) {
             this.to_gain = to_gain;
-            this.gain_commands = gain_commands;
+            this.gain_keyframes = gain_keyframes;
         }
         async compile(output_node) {
             const gain_node = output_node.context.createGain();
-            return new CompiledGain(gain_node, output_node, await this.to_gain.compile(gain_node), this.gain_commands);
+            return new CompiledGain(gain_node, output_node, await this.to_gain.compile(gain_node), this.gain_keyframes);
         }
     }
     class CompiledGain {
         gain_node;
         output_node;
         to_gain;
-        gain_commands;
+        gain_keyframes;
         get duration() {
             return this.to_gain.duration;
         }
-        constructor(gain_node, output_node, to_gain, gain_commands) {
+        constructor(gain_node, output_node, to_gain, gain_keyframes) {
             this.gain_node = gain_node;
             this.output_node = output_node;
             this.to_gain = to_gain;
-            this.gain_commands = gain_commands;
+            this.gain_keyframes = gain_keyframes;
             gain_node.connect(output_node);
         }
         schedule_play(play_at, maybe_offset) {
@@ -268,7 +268,7 @@
             const scheduled = this.to_gain.schedule_play(start_time, offset);
             const gain = this.gain_node.gain;
             const original_value = gain.value;
-            for (const { transition, value, when_from_start } of this.gain_commands) {
+            for (const { transition, value, from_start } of this.gain_keyframes) {
                 const value_changer = (() => {
                     switch (transition) {
                         case undefined: {
@@ -282,7 +282,7 @@
                         }
                     }
                 })();
-                value_changer(value, Math.max(0, (start_time + when_from_start) - offset));
+                value_changer(value, Math.max(0, (start_time + from_start) - offset));
             }
             return {
                 schedule_stop: (stop_at) => {
@@ -301,7 +301,7 @@
                 return this;
             }
             const gain_node = other_output_node.context.createGain();
-            return new CompiledGain(gain_node, other_output_node, await this.to_gain.compile(gain_node), this.gain_commands);
+            return new CompiledGain(gain_node, other_output_node, await this.to_gain.compile(gain_node), this.gain_keyframes);
         }
         dispose() {
             this.to_gain.dispose();

@@ -406,10 +406,10 @@ class CompiledSequence<
 
 type AudioParamTransition = undefined | "exponential" | "linear";
 
-type GainCommand = {
+type GainKeyframe = {
     transition: AudioParamTransition;
     value: number;
-    when_from_start: Seconds;
+    from_start: Seconds;
 };
 
 class Gain<
@@ -420,7 +420,7 @@ class Gain<
 > implements AudioCommand<OutputNode, ScheduledCommand, CompiledGain<OutputNode, ChildScheduled, CompiledChild>> {
     constructor(
         readonly to_gain: Child,
-        readonly gain_commands: GainCommand[]
+        readonly gain_keyframes: GainKeyframe[]
     ) { }
 
     async compile(output_node: OutputNode): Promise<CompiledGain<OutputNode, ChildScheduled, CompiledChild>> {
@@ -430,7 +430,7 @@ class Gain<
             gain_node,
             output_node,
             await this.to_gain.compile(gain_node),
-            this.gain_commands
+            this.gain_keyframes
         );
     }
 }
@@ -448,7 +448,7 @@ class CompiledGain<
         readonly gain_node: GainNode,
         readonly output_node: OutputNode,
         readonly to_gain: CompiledChild,
-        readonly gain_commands: GainCommand[],
+        readonly gain_keyframes: GainKeyframe[],
     ) {
         gain_node.connect(output_node);
     }
@@ -464,7 +464,7 @@ class CompiledGain<
         const gain = this.gain_node.gain;
         const original_value = gain.value;
 
-        for (const { transition, value, when_from_start } of this.gain_commands) {
+        for (const { transition, value, from_start } of this.gain_keyframes) {
             const value_changer = (() => {
                 switch (transition) {
                     case undefined: {
@@ -481,7 +481,7 @@ class CompiledGain<
                 }
             })();
 
-            value_changer(value, Math.max(0, (start_time + when_from_start) - offset));
+            value_changer(value, Math.max(0, (start_time + from_start) - offset));
         }
 
         return {
@@ -510,7 +510,7 @@ class CompiledGain<
             gain_node,
             other_output_node,
             await this.to_gain.compile(gain_node),
-            this.gain_commands
+            this.gain_keyframes
         );
     }
 
