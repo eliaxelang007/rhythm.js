@@ -105,7 +105,7 @@ declare class CompiledGain<OutputNode extends AudioNode, ChildScheduled extends 
     readonly gain_commands: GainCommand[];
     get duration(): Seconds;
     constructor(gain_node: GainNode, output_node: OutputNode, to_gain: CompiledChild, gain_commands: GainCommand[]);
-    schedule_play(play_at?: Seconds, maybe_offset?: Seconds): Stoppable;
+    schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): Stoppable;
     compile(other_output_node: OutputNode): Promise<CompiledGain<OutputNode, ChildScheduled, CompiledChild>>;
     dispose(): void;
 }
