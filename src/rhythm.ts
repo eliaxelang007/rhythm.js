@@ -453,7 +453,7 @@ class CompiledGain<
         gain_node.connect(output_node);
     }
 
-    schedule_play(play_at?: Seconds, maybe_offset?: Seconds): Stoppable {
+    schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): Stoppable {
         const context = this.output_node.context;
 
         const start_time = pinpoint(play_at, context.currentTime);
