@@ -240,7 +240,7 @@ play();
 ### Gain
 
 To change the volume of a track throughout its playback, try this!
-`Gain` here adds a 5 second exponential fade in and fade out to the track.
+`Gain` here adds a 20 second exponential fade in and fade out to the track.
 
 ```typescript
 import { RhythmContext, Play, Gain } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
@@ -251,9 +251,11 @@ async function play() {
     const rhythm = new RhythmContext();
     const compiled_song = await rhythm.compile(song);
 
+    const fade_duration_seconds = 20;
+
     const faded_song = await rhythm.compile(
         new Gain(
-            compiled_song, // You could very well put any other Audio Command here. It doesn't have to be compiled.
+            compiled_song, // [1] You could very well put any other Audio Command here. It doesn't have to be compiled.
             [
                 {
                     value: 0.01, // Can't exponentially fade in from a flat 0.
@@ -262,11 +264,11 @@ async function play() {
                 {
                     transition: "exponential",
                     value: 1,
-                    from_start: 20
+                    from_start: fade_duration_seconds
                 },
                 {
                     value: 1,
-                    from_start: compiled_song.duration - 20
+                    from_start: compiled_song.duration - fade_duration_seconds // [2] I only compiled the song to calculate its duration.
                 },
                 {
                     transition: "exponential",
@@ -294,4 +296,6 @@ type GainKeyframe = {
 ```
 
 # Credits
+If you find any bugs while using this library, don't hesitate to file an [issue](https://github.com/eliaxelang007/rhythm.js/issues) or [pull request](https://github.com/eliaxelang007/rhythm.js/pulls) on [GitHub](https://github.com/eliaxelang007/rhythm.js)!
+
 Sample music in tests from [StarryAttic](https://www.youtube.com/watch?v=FqI9cM6fczU) on Youtube!
