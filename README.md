@@ -1,7 +1,7 @@
 # Rhythm.js!
 
 ## Description
-[rhythm.js](https://github.com/eliaxelang007/rhythm.js/tree/main) is a relatively thin wrapper around the Web AudioAPI that (hopefully) makes interacting with it a lot more intuitive!
+[rhythm.js](https://github.com/eliaxelang007/rhythm.js) is a relatively thin wrapper around the Web AudioAPI that (hopefully) makes interacting with it a lot more intuitive!
 
 The whole library is built around the concepts of **Audio Commands** and **Compiled Audio Commands**. <br/>
 You can **nest audio commands inside other audio commands** to get more complex behavior! <br/>
@@ -9,7 +9,17 @@ And, you can treat **Compiled Audio Commands** just like uncompiled ones!
 
 It's like Google's **Flutter** but for audio manipulation.
 
+Find it on [npm](https://www.npmjs.com/package/rhythm.js) and [GitHub](https://github.com/eliaxelang007/rhythm.js)!
+
 ## Documentation
+
+### Quickstart
+
+* Clone the [repo](https://github.com/eliaxelang007/rhythm.js): `git clone https://github.com/eliaxelang007/rhythm.js.git`
+* Install with [npm](https://www.npmjs.com/package/rhythm.js): `npm install rhythm.js`
+* CDN using jsDelivr 
+  * `<script src="https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.js"></script>` <br/> (You'll have to prefix your imports with `Rhythm.`)
+  * `import { /* Imports */ } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";`
 
 ### Commands
 
@@ -38,14 +48,14 @@ const some_command = new Repeat(
 );
 ```
 
-compile it into a track,
+compile it,
 
 ```typescript
 const rhythm = new RhythmContext(/* new AudioContext() [You can optionally provide an AudioContext] */);
 const track = await rhythm.compile(some_command);
 ```
 
-and finally play it!
+and then, finally, play it!
 
 ```typescript
 track.schedule_play();
