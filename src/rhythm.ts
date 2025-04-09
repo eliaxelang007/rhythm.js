@@ -32,7 +32,10 @@ interface CompiledAudioCommand<
 > extends
     Outputter<OutputNode>,
     Playable<Scheduled>,
-    AudioCommand<OutputNode, Scheduled, Self> { }
+    AudioCommand<OutputNode, Scheduled, Self
+    > {
+    dispose(): void;
+}
 
 function pinpoint(coordinate: TimeCoordinate | undefined, current_time: number): TimeCoordinate {
     return (
@@ -113,6 +116,8 @@ class CompiledPlay<
 
         return new CompiledPlay(output_node, this.buffer);
     }
+
+    dispose() { }
 }
 
 class Clip<
@@ -178,6 +183,10 @@ class CompiledClip<
             this.duration,
             this.offset
         );
+    }
+
+    dispose() {
+        this.to_clip.dispose();
     }
 }
 
@@ -269,6 +278,10 @@ class CompiledRepeat<
             await this.to_repeat.compile(output_node),
             this.duration
         );
+    }
+
+    dispose(): void {
+        this.to_repeat.dispose();
     }
 }
 
@@ -383,6 +396,12 @@ class CompiledSequence<
             )
         );
     }
+
+    dispose(): void {
+        for (const command of this.sequence) {
+            command.dispose();
+        }
+    }
 }
 
 type AudioParamTransition = undefined | "exponential" | "linear";
@@ -486,7 +505,6 @@ class CompiledGain<
         }
 
         const gain_node = other_output_node.context.createGain();
-        gain_node.connect(other_output_node);
 
         return new CompiledGain(
             gain_node,
@@ -494,6 +512,11 @@ class CompiledGain<
             await this.to_gain.compile(gain_node),
             this.gain_commands
         );
+    }
+
+    dispose(): void {
+        this.to_gain.dispose();
+        this.gain_node.disconnect();
     }
 }
 

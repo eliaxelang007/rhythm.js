@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "rhythm.js",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "This library is a wrapper around the Web Audio API that (hopefully) makes interacting with it much more intuitive!",
   "main": "dist/rhythm.js",
   "module": "dist/rhythm.esm.js",

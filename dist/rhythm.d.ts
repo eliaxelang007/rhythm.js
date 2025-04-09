@@ -18,6 +18,7 @@ interface AudioCommand<OutputNode extends AudioNode, Scheduled extends Stoppable
     compile(output_node: OutputNode): Promise<CompileTo>;
 }
 interface CompiledAudioCommand<OutputNode extends AudioNode, Scheduled extends Stoppable, Self extends CompiledAudioCommand<OutputNode, Scheduled, Self>> extends Outputter<OutputNode>, Playable<Scheduled>, AudioCommand<OutputNode, Scheduled, Self> {
+    dispose(): void;
 }
 type ScheduledCommand = {
     time_from_start(): Seconds;
@@ -35,6 +36,7 @@ declare class CompiledPlay<OutputNode extends AudioNode> implements CompiledAudi
     constructor(output_node: OutputNode, buffer: AudioBuffer);
     schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): ScheduledCommand;
     compile(output_node: OutputNode): Promise<CompiledPlay<OutputNode>>;
+    dispose(): void;
 }
 declare class Clip<ChildOutputNode extends AudioNode, ChildScheduled extends Stoppable, ChildCompileTo extends CompiledAudioCommand<ChildOutputNode, ChildScheduled, ChildCompileTo>, Child extends AudioCommand<ChildOutputNode, ChildScheduled, ChildCompileTo>> implements AudioCommand<ChildOutputNode, ChildScheduled, CompiledClip<ChildOutputNode, ChildScheduled, ChildCompileTo>> {
     readonly to_clip: Child;
@@ -51,6 +53,7 @@ declare class CompiledClip<ChildOutputNode extends AudioNode, ChildScheduled ext
     get output_node(): ChildOutputNode;
     schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): ChildScheduled;
     compile(output_node: ChildOutputNode): Promise<CompiledClip<ChildOutputNode, ChildScheduled, CompiledChild>>;
+    dispose(): void;
 }
 declare class Repeat<ChildOutputNode extends AudioNode, ChildScheduled extends Stoppable, ChildCompileTo extends CompiledAudioCommand<ChildOutputNode, ChildScheduled, ChildCompileTo>, Child extends AudioCommand<ChildOutputNode, ChildScheduled, ChildCompileTo>> implements AudioCommand<ChildOutputNode, ScheduledCommand, CompiledRepeat<ChildOutputNode, ChildScheduled, ChildCompileTo>> {
     readonly to_repeat: Child;
@@ -65,6 +68,7 @@ declare class CompiledRepeat<ChildOutputNode extends AudioNode, ChildScheduled e
     get output_node(): ChildOutputNode;
     schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): ScheduledCommand;
     compile(output_node: ChildOutputNode): Promise<CompiledRepeat<ChildOutputNode, ChildScheduled, CompiledChild>>;
+    dispose(): void;
 }
 type AnyCompiledCommand<OutputNode extends AudioNode> = CompiledAudioCommand<OutputNode, Stoppable, AnyCompiledCommand<OutputNode>>;
 type AnyCommand<OutputNode extends AudioNode> = AudioCommand<OutputNode, Stoppable, AnyCompiledCommand<OutputNode>>;
@@ -80,6 +84,7 @@ declare class CompiledSequence<ChildOutputNode extends AudioNode> implements Com
     constructor(output_node: ChildOutputNode, sequence: AnyCompiledCommand<ChildOutputNode>[]);
     schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): ScheduledCommand;
     compile(output_node: ChildOutputNode): Promise<CompiledSequence<ChildOutputNode>>;
+    dispose(): void;
 }
 type AudioParamTransition = undefined | "exponential" | "linear";
 type GainCommand = {
@@ -102,6 +107,7 @@ declare class CompiledGain<OutputNode extends AudioNode, ChildScheduled extends 
     constructor(gain_node: GainNode, output_node: OutputNode, to_gain: CompiledChild, gain_commands: GainCommand[]);
     schedule_play(play_at?: Seconds, maybe_offset?: Seconds): Stoppable;
     compile(other_output_node: OutputNode): Promise<CompiledGain<OutputNode, ChildScheduled, CompiledChild>>;
+    dispose(): void;
 }
 type CompileToOf<C> = C extends AudioCommand<any, any, infer To> ? To : never;
 declare class RhythmContext {

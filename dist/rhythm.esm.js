@@ -50,6 +50,7 @@ class CompiledPlay {
         }
         return new CompiledPlay(output_node, this.buffer);
     }
+    dispose() { }
 }
 class Clip {
     to_clip;
@@ -89,6 +90,9 @@ class CompiledClip {
             return this;
         }
         return new CompiledClip(await this.to_clip.compile(output_node), this.duration, this.offset);
+    }
+    dispose() {
+        this.to_clip.dispose();
     }
 }
 class Repeat {
@@ -148,6 +152,9 @@ class CompiledRepeat {
             return this;
         }
         return new CompiledRepeat(await this.to_repeat.compile(output_node), this.duration);
+    }
+    dispose() {
+        this.to_repeat.dispose();
     }
 }
 class Sequence {
@@ -214,6 +221,11 @@ class CompiledSequence {
             return this;
         }
         return new CompiledSequence(this.output_node, await Promise.all(this.sequence.map((command) => command.compile(output_node))));
+    }
+    dispose() {
+        for (const command of this.sequence) {
+            command.dispose();
+        }
     }
 }
 class Gain {
@@ -283,8 +295,11 @@ class CompiledGain {
             return this;
         }
         const gain_node = other_output_node.context.createGain();
-        gain_node.connect(other_output_node);
         return new CompiledGain(gain_node, other_output_node, await this.to_gain.compile(gain_node), this.gain_commands);
+    }
+    dispose() {
+        this.to_gain.dispose();
+        this.gain_node.disconnect();
     }
 }
 class RhythmContext {

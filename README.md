@@ -106,6 +106,16 @@ const new_track = await rhythm.compile(
 
 You can get a lot more complex with this tenet, try it out!
 
+---
+
+If you want to be extra tidy, you can call the `dispose` method to cleanup the used Web Audio API resources.
+
+```typescript
+const track = await rhythm.compile(new Play("example.mp3"));
+track.dispose();
+```
+> Silently waiting on [`proposal-explicit-resource-management`](https://github.com/tc39/proposal-explicit-resource-management)!
+
 ## Examples
 
 ### Play
