@@ -20,6 +20,7 @@ Find it on [npm](https://www.npmjs.com/package/rhythm.js) and [GitHub](https://g
 * CDN using jsDelivr 
   * `<script src="https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.js"></script>` <br/> (You'll have to prefix your imports with `Rhythm.`)
   * `import { /* Imports */ } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";`
+> The CDN may not update instantly once the latest version is released.
 
 ### Commands
 
