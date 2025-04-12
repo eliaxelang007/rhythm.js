@@ -13,32 +13,34 @@
         constructor(path) {
             this.path = path;
         }
-        async compile(output_node) {
+        async compile(context) {
             const response = await fetch(this.path);
             const array_buffer = await response.arrayBuffer();
-            const context = output_node.context;
             const audio_buffer = await context.decodeAudioData(array_buffer);
-            return new CompiledPlay(output_node, audio_buffer);
+            return new CompiledPlay(audio_buffer);
         }
     }
     class CompiledPlay {
-        output_node;
         buffer;
         duration;
-        constructor(output_node, buffer) {
-            this.output_node = output_node;
+        constructor(buffer) {
             this.buffer = buffer;
             this.duration = buffer.duration;
         }
-        schedule_play(play_at, maybe_offset) {
-            const output_node = this.output_node;
+        schedule_play(output_node, play_at, maybe_offset) {
             const context = output_node.context;
             const player = context.createBufferSource();
             player.buffer = this.buffer;
-            player.onended = (_) => {
-                player.disconnect();
+            const on_stop_listeners = [
+                (_) => player.disconnect()
+            ];
+            player.onended = (event) => {
+                let listener = undefined;
+                while ((listener = on_stop_listeners.pop()) !== undefined) {
+                    listener(event);
+                }
             };
-            player.connect(this.output_node);
+            player.connect(output_node);
             const start_time = pinpoint(play_at, context.currentTime);
             player.start(start_time, maybe_offset);
             return {
@@ -47,16 +49,16 @@
                 },
                 time_from_start: () => {
                     return (context.currentTime - start_time);
-                }
+                },
+                add_on_stop_listener: (listener) => on_stop_listeners.push(listener)
             };
         }
-        async compile(output_node) {
-            if (this.output_node === output_node) {
-                return this;
-            }
-            return new CompiledPlay(output_node, this.buffer);
+        async compile(_) {
+            return this;
         }
-        dispose() { }
+        attach_to(output_node) {
+            return new Attached(this, output_node);
+        }
     }
     class Clip {
         to_clip;
@@ -67,8 +69,8 @@
             this.duration = duration;
             this.offset = offset;
         }
-        async compile(output_node) {
-            return new CompiledClip(await this.to_clip.compile(output_node), this.duration, this.offset);
+        async compile(context) {
+            return new CompiledClip(await this.to_clip.compile(context), this.duration, this.offset);
         }
     }
     class CompiledClip {
@@ -80,25 +82,19 @@
             this.duration = duration;
             this.offset = offset;
         }
-        get output_node() {
-            return this.to_clip.output_node;
-        }
-        schedule_play(play_at, maybe_offset) {
-            const start_time = pinpoint(play_at, this.output_node.context.currentTime);
+        schedule_play(output_node, play_at, maybe_offset) {
+            const start_time = pinpoint(play_at, output_node.context.currentTime);
             const offset = maybe_offset ?? 0;
             const command = this.to_clip;
-            const scheduled = command.schedule_play(start_time, (this.offset + offset));
+            const scheduled = command.schedule_play(output_node, start_time, (this.offset + offset));
             scheduled.schedule_stop((start_time + (this.duration - offset)));
             return scheduled;
         }
-        async compile(output_node) {
-            if (this.output_node === output_node) {
-                return this;
-            }
-            return new CompiledClip(await this.to_clip.compile(output_node), this.duration, this.offset);
+        async compile(_) {
+            return this;
         }
-        dispose() {
-            this.to_clip.dispose();
+        attach_to(output_node) {
+            return new Attached(this, output_node);
         }
     }
     class Repeat {
@@ -108,8 +104,8 @@
             this.to_repeat = to_repeat;
             this.duration = duration;
         }
-        async compile(output_node) {
-            return new CompiledRepeat(await this.to_repeat.compile(output_node), this.duration);
+        async compile(context) {
+            return new CompiledRepeat(await this.to_repeat.compile(context), this.duration);
         }
     }
     class CompiledRepeat {
@@ -119,22 +115,19 @@
             this.to_repeat = to_repeat;
             this.duration = duration;
         }
-        get output_node() {
-            return this.to_repeat.output_node;
-        }
-        schedule_play(play_at, maybe_offset) {
+        schedule_play(output_node, play_at, maybe_offset) {
             const offset = maybe_offset ?? 0;
             const command = this.to_repeat;
             const command_duration = command.duration;
             const duration = this.duration;
-            const context = this.output_node.context;
+            const context = output_node.context;
             const start_time = pinpoint(play_at, context.currentTime);
             let remaining_duration = (duration - offset);
             let repeat_offset = (offset % command_duration);
             let til_next_repeat = start_time;
             const repeats = [];
             while (remaining_duration > 0) {
-                repeats.push(command.schedule_play(til_next_repeat, repeat_offset));
+                repeats.push(command.schedule_play(output_node, til_next_repeat, repeat_offset));
                 const repeat_duration = command_duration - repeat_offset;
                 til_next_repeat = (til_next_repeat + repeat_duration);
                 remaining_duration = (remaining_duration - repeat_duration);
@@ -151,16 +144,16 @@
                 time_from_start: () => {
                     return (context.currentTime - start_time);
                 },
+                add_on_stop_listener: (listener) => {
+                    last_scheduled?.add_on_stop_listener(listener);
+                }
             };
         }
-        async compile(output_node) {
-            if (this.output_node === output_node) {
-                return this;
-            }
-            return new CompiledRepeat(await this.to_repeat.compile(output_node), this.duration);
+        async compile(_) {
+            return this;
         }
-        dispose() {
-            this.to_repeat.dispose();
+        attach_to(output_node) {
+            return new Attached(this, output_node);
         }
     }
     class Sequence {
@@ -168,23 +161,21 @@
         constructor(sequence) {
             this.sequence = sequence;
         }
-        async compile(output_node) {
-            return new CompiledSequence(output_node, await Promise.all(this.sequence.map((compilable) => compilable.compile(output_node))));
+        async compile(context) {
+            return new CompiledSequence(await Promise.all(this.sequence.map((compilable) => compilable.compile(context))));
         }
     }
     class CompiledSequence {
-        output_node;
         sequence;
         duration;
-        constructor(output_node, sequence) {
-            this.output_node = output_node;
+        constructor(sequence) {
             this.sequence = sequence;
             this.duration = sequence
                 .map((command) => command.duration)
                 .reduce((total_duration, duration) => total_duration + duration, 0);
         }
-        schedule_play(play_at, maybe_offset) {
-            const context = this.output_node.context;
+        schedule_play(output_node, play_at, maybe_offset) {
+            const context = output_node.context;
             const start_time = pinpoint(play_at, context.currentTime);
             let offset = (maybe_offset ?? 0);
             const iterator = this.sequence.values();
@@ -197,7 +188,7 @@
                 }
                 const command_duration = command.duration;
                 if (offset < command_duration) {
-                    sequenced.push(command.schedule_play(start_time, offset));
+                    sequenced.push(command.schedule_play(output_node, start_time, offset));
                     next_start_time = (start_time + (command_duration - offset));
                     break;
                 }
@@ -208,9 +199,10 @@
                 if (done) {
                     break;
                 }
-                sequenced.push(command.schedule_play(next_start_time));
+                sequenced.push(command.schedule_play(output_node, next_start_time));
                 next_start_time = (next_start_time + command.duration);
             }
+            const last_scheduled = sequenced.at(-1);
             return {
                 schedule_stop: (stop_at) => {
                     for (const scheduled of sequenced) {
@@ -220,18 +212,16 @@
                 time_from_start: () => {
                     return (context.currentTime - start_time);
                 },
+                add_on_stop_listener: (listener) => {
+                    last_scheduled?.add_on_stop_listener(listener);
+                }
             };
         }
-        async compile(output_node) {
-            if (this.output_node === output_node) {
-                return this;
-            }
-            return new CompiledSequence(this.output_node, await Promise.all(this.sequence.map((command) => command.compile(output_node))));
+        async compile(_) {
+            return this;
         }
-        dispose() {
-            for (const command of this.sequence) {
-                command.dispose();
-            }
+        attach_to(output_node) {
+            return new Attached(this, output_node);
         }
     }
     class Gain {
@@ -241,32 +231,28 @@
             this.to_gain = to_gain;
             this.gain_keyframes = gain_keyframes;
         }
-        async compile(output_node) {
-            const gain_node = output_node.context.createGain();
-            return new CompiledGain(gain_node, output_node, await this.to_gain.compile(gain_node), this.gain_keyframes);
+        async compile(context) {
+            return new CompiledGain(await this.to_gain.compile(context), this.gain_keyframes);
         }
     }
     class CompiledGain {
-        gain_node;
-        output_node;
         to_gain;
         gain_keyframes;
         get duration() {
             return this.to_gain.duration;
         }
-        constructor(gain_node, output_node, to_gain, gain_keyframes) {
-            this.gain_node = gain_node;
-            this.output_node = output_node;
+        constructor(to_gain, gain_keyframes) {
             this.to_gain = to_gain;
             this.gain_keyframes = gain_keyframes;
-            gain_node.connect(output_node);
         }
-        schedule_play(play_at, maybe_offset) {
-            const context = this.output_node.context;
+        schedule_play(output_node, play_at, maybe_offset) {
+            const context = output_node.context;
+            const gain_node = context.createGain();
+            gain_node.connect(output_node);
+            const gain = gain_node.gain;
             const start_time = pinpoint(play_at, context.currentTime);
             const offset = maybe_offset ?? 0;
-            const scheduled = this.to_gain.schedule_play(start_time, offset);
-            const gain = this.gain_node.gain;
+            const scheduled = this.to_gain.schedule_play(gain_node, start_time, offset);
             const original_value = gain.value;
             for (const { transition, value, from_start } of this.gain_keyframes) {
                 const value_changer = (() => {
@@ -284,6 +270,9 @@
                 })();
                 value_changer(value, Math.max(0, (start_time + from_start) - offset));
             }
+            scheduled.add_on_stop_listener((_) => {
+                gain_node.disconnect();
+            });
             return {
                 schedule_stop: (stop_at) => {
                     const stop_time = pinpoint(stop_at, context.currentTime);
@@ -294,18 +283,31 @@
                 time_from_start: () => {
                     return scheduled.time_from_start();
                 },
+                add_on_stop_listener: (listener) => scheduled.add_on_stop_listener(listener)
             };
         }
-        async compile(other_output_node) {
-            if (this.output_node === other_output_node) {
-                return this;
-            }
-            const gain_node = other_output_node.context.createGain();
-            return new CompiledGain(gain_node, other_output_node, await this.to_gain.compile(gain_node), this.gain_keyframes);
+        async compile(_) {
+            return this;
         }
-        dispose() {
-            this.to_gain.dispose();
-            this.gain_node.disconnect();
+        attach_to(output_node) {
+            return new Attached(this, output_node);
+        }
+    }
+    class Attached {
+        compiled;
+        attach_to;
+        constructor(compiled, attach_to) {
+            this.compiled = compiled;
+            this.attach_to = attach_to;
+        }
+        get duration() {
+            return this.compiled.duration;
+        }
+        schedule_play(play_at, maybe_offset) {
+            return this.compiled.schedule_play(this.attach_to, play_at, maybe_offset);
+        }
+        detach() {
+            return this.compiled;
         }
     }
     class RhythmContext {
@@ -313,11 +315,17 @@
         constructor(context) {
             this.context = context ?? new AudioContext();
         }
-        compile(command) {
-            return command.compile(this.context.destination);
-        }
         get current_time() {
             return this.context.currentTime;
+        }
+        async compile_attached(command) {
+            return this.attach(await this.compile(command));
+        }
+        attach(command) {
+            return command.attach_to(this.context.destination);
+        }
+        compile(command) {
+            return command.compile(this.context);
         }
     }
 

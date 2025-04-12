@@ -1,15 +1,15 @@
-# Rhythm.js!
+# Rhythm.js
 
 ## Description
-[rhythm.js](https://github.com/eliaxelang007/rhythm.js) is a relatively thin wrapper around the Web AudioAPI that (hopefully) makes interacting with it a lot more intuitive!
+[rhythm.js](https://github.com/eliaxelang007/rhythm.js) is a relatively thin wrapper around the Web AudioAPI that (hopefully) makes interacting with it a lot more intuitive.
 
 The whole library is built around the concepts of **Audio Commands** and **Compiled Audio Commands**. <br/>
-You can **nest audio commands inside other audio commands** to get more complex behavior! <br/>
+You can **nest audio commands inside other audio commands** to get more complex behavior. <br/>
 And, you can treat **Compiled Audio Commands** just like uncompiled ones!
 
-It's like Google's **Flutter** but for audio manipulation.
+It's like a declarative UI framework, but for audio.
 
-Find it on [npm](https://www.npmjs.com/package/rhythm.js) and [GitHub](https://github.com/eliaxelang007/rhythm.js)!
+Find it on [npm](https://www.npmjs.com/package/rhythm.js) and [GitHub](https://github.com/eliaxelang007/rhythm.js).
 
 ## Documentation
 
@@ -27,11 +27,11 @@ Here's a list of the currently available audio commands.
 
 | AudioCommand | Description |
 | --- | --- |
-| `Play(path: string)` | The most basic audio command. Plays the audio file specified in `path`! |
+| `Play(path: string)` | The most basic audio command. Plays the audio file specified in `path`. |
 | `Clip(to_clip: AudioCommand, duration: Seconds, offset: Seconds = 0)` | Creates a clip of its child command starting at `offset` and playing from there for `duration`. |
 | `Repeat(to_repeat: AudioCommand, duration: Seconds)` | Repeats its child command until it fits into `duration`. |
 | `Sequence(sequence: AudioCommand[])` | Plays each command in `sequence` one after the other. |
-| `Gain(to_gain: AudioCommand, gain_keyframes: GainKeyframe[]) ` | Plays its child command normally but `gain_keyframes` lets you control how the volume will change over time! |
+| `Gain(to_gain: AudioCommand, gain_keyframes: GainKeyframe[]) ` | Plays its child command normally but `gain_keyframes` lets you control how the volume will change over time. |
 
 ### General Usage
 
@@ -48,11 +48,11 @@ const some_command = new Repeat(
 );
 ```
 
-compile it,
+compile and attach it,
 
 ```typescript
 const rhythm = new RhythmContext(/* new AudioContext() [You can optionally provide an AudioContext] */);
-const track = await rhythm.compile(some_command);
+const track = await rhythm.compile_attached(some_command);
 ```
 
 and then, finally, play it!
@@ -105,26 +105,44 @@ You can see an example of this in the code snippet below.
 ```typescript
 const track = await rhythm.compile(new Play("example.mp3"));
 
-const new_track = await rhythm.compile(
+const new_track = await rhythm.compile_attached(
   new Repeat(
     track,
     track.duration * 2 // Repeat the track twice.
   )
 );
+
+new_track.scheduled_play();
 ```
-> Loading audio tracks happens in the compilation stage, and since the `Play` inside `track` has already been compiled, the second `await rhythm.compile` here runs almost instantly!
+> Loading audio tracks happens in the compilation stage, and since the `Play` inside `track` has already been compiled, `await rhythm.compile_attached` here runs almost instantly!
 
 You can get a lot more complex with this tenet, try it out!
 
----
+### RhythmContext
 
-If you want to be extra tidy, you can call the `dispose` method to cleanup the used Web Audio API resources.
+Here's what the methods of `RhythmContext` do.
+
+| Compilation Method | Description |
+| --- | --- |
+| `compile(command: AudioCommand)` | Compiles your `AudioCommand` into a form where you have to supply an `AudioNode` `output_node` as the first argument every time you call `scheduled_play`. |
+| `attach(command: CompiledAudioCommand)` | Once attached to the `RhythmContext`, the `destination` node of the `RhythmContext`'s inner `AudioContext` is always implicitly supplied as the first argument in the compiled command's `scheduled_play`, allowing you to call the method without passing an `output_node` in. |
+| `compile_attached(command: AudioCommand)` | Equivalent to `this.attach(await this.compile(command))` |
+> Attached compiled commands can be detached using their `detach` methods, making their `scheduled_play` methods have to be called with an explicit `output_node` as their first parameter again.
+
+### `onended` Callbacks
+
+If you want to run some code once a track has completed playing, do this.
+
+### Advanced
+
+If you'd like, you can read through the only 500 lines of code that make up this library. That way, you'll gain a fuller grasp of its inner workings.
+> I've tried to cover all the features comprehensively in this readme though, but still feel free to peek around!
 
 ```typescript
-const track = await rhythm.compile(new Play("example.mp3"));
-track.dispose();
+const scheduled = track.schedule_play();
+
+scheduled.add_on_stop_listener((event) => { /* Code to run when the track has finished playing. */ });
 ```
-> Silently waiting on [`proposal-explicit-resource-management`](https://github.com/tc39/proposal-explicit-resource-management)!
 
 ## Examples
 
@@ -132,7 +150,7 @@ We'll be using `./celery_in_a_carrot_field.ogg` as our example track's filepath.
 
 ### Play
 
-To play a track with rhythm.js, try this!
+To play a track with rhythm.js, try this.
 
 ```typescript
 import { RhythmContext, Play } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
@@ -141,7 +159,7 @@ async function play() {
     const command = new Play("./celery_in_a_carrot_field.ogg");
 
     const rhythm = new RhythmContext();
-    const track = await rhythm.compile(command);
+    const track = await rhythm.compile_attached(command);
 
     track.schedule_play();
 }
@@ -151,7 +169,7 @@ play();
 
 ### Clip
 
-To create a clip of a certain section of a track, do this!
+To create a clip of a certain section of a track, do this.
 
 In this code snippet, `Clip` will create a track that starts 5 seconds 
 into its child node, `Play`, and then plays its next 10 seconds.
@@ -170,7 +188,7 @@ async function play() {
     );
 
     const rhythm = new RhythmContext();
-    const track = await rhythm.compile(command);
+    const track = await rhythm.compile_attached(command);
 
     track.schedule_play();
 }
@@ -180,7 +198,7 @@ play();
 
 ### Repeat
 
-To repeat a track, do this!
+To repeat a track, do this.
 In this code snippet, once the `Repeat` node is scheduled to play, <br/> it will keep repeating the `Clip` node inside it while it hasn't been 20 seconds yet.
 
 ```typescript
@@ -202,7 +220,7 @@ async function play() {
     );
 
     const rhythm = new RhythmContext();
-    const track = await rhythm.compile(command);
+    const track = await rhythm.compile_attached(command);
 
     track.schedule_play();
 }
@@ -212,7 +230,7 @@ play();
 
 ### Sequence
 
-To play tracks one after the other, do this!
+To play tracks one after the other, do this.
 `Sequence` will play the `Clip` inside of it first, and when it ends will play the `Repeat` inside it next.
 
 ```typescript
@@ -229,7 +247,7 @@ async function play() {
     );
 
     const rhythm = new RhythmContext();
-    const track = await rhythm.compile(command);
+    const track = await rhythm.compile_attached(command);
 
     track.schedule_play();
 }
@@ -239,7 +257,7 @@ play();
 
 ### Gain
 
-To change the volume of a track throughout its playback, try this!
+To change the volume of a track throughout its playback, try this.
 `Gain` here adds a 20 second exponential fade in and fade out to the track.
 
 ```typescript
@@ -249,11 +267,11 @@ async function play() {
     const song = new Play("./celery_in_a_carrot_field.ogg");
 
     const rhythm = new RhythmContext();
-    const compiled_song = await rhythm.compile(song);
+    const compiled_song = await rhythm.compile(song); // See [RhythmContext] section of the readme.
 
     const fade_duration_seconds = 20;
 
-    const faded_song = await rhythm.compile(
+    const faded_song = await rhythm.compile_attached(
         new Gain(
             compiled_song, // [1] You could very well put any other Audio Command here. It doesn't have to be compiled.
             [
@@ -285,7 +303,7 @@ async function play() {
 play();
 ```
 
-This is what the type of `GainKeyframe` look like!
+This is what the type of `GainKeyframe` look like.
 
 ```typescript
 type GainKeyframe = {
@@ -295,7 +313,9 @@ type GainKeyframe = {
 };
 ```
 
-# Credits
-If you find any bugs while using this library, don't hesitate to file an [issue](https://github.com/eliaxelang007/rhythm.js/issues) or [pull request](https://github.com/eliaxelang007/rhythm.js/pulls) on [GitHub](https://github.com/eliaxelang007/rhythm.js)!
+## Credits
+If you encounter any bugs or see any issues with this library, don't hesitate to file an [issue/suggestion](https://github.com/eliaxelang007/rhythm.js/issues) or [pull request](https://github.com/eliaxelang007/rhythm.js/pulls) on [GitHub](https://github.com/eliaxelang007/rhythm.js)!
 
-Sample music in tests from [StarryAttic](https://www.youtube.com/watch?v=FqI9cM6fczU) on Youtube!
+The API is still constantly changing, so it's not production ready. (Yet!)
+
+Sample music in tests from [StarryAttic](https://www.youtube.com/watch?v=FqI9cM6fczU) on Youtube.

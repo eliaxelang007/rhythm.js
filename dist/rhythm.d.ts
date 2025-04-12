@@ -3,88 +3,84 @@ type NewType<T> = T & {
 };
 type Seconds = NewType<number>;
 type TimeCoordinate = NewType<Seconds>;
+type OnStopListener = (event: Event) => any;
 interface Stoppable {
     time_from_start(): Seconds;
     schedule_stop(stop_at?: TimeCoordinate): void;
+    add_on_stop_listener(listener: OnStopListener): void;
 }
 interface Playable<Scheduled extends Stoppable> {
-    schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): Scheduled;
+    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): Scheduled;
     get duration(): Seconds;
 }
-interface Outputter<OutputNode extends AudioNode> {
-    get output_node(): OutputNode;
+interface AudioCommand<Scheduled extends Stoppable, CompileTo extends CompiledAudioCommand<Scheduled, CompileTo>> {
+    compile<Context extends BaseAudioContext>(context: Context): Promise<CompileTo>;
 }
-interface AudioCommand<OutputNode extends AudioNode, Scheduled extends Stoppable, CompileTo extends CompiledAudioCommand<OutputNode, Scheduled, CompileTo>> {
-    compile(output_node: OutputNode): Promise<CompileTo>;
-}
-interface CompiledAudioCommand<OutputNode extends AudioNode, Scheduled extends Stoppable, Self extends CompiledAudioCommand<OutputNode, Scheduled, Self>> extends Outputter<OutputNode>, Playable<Scheduled>, AudioCommand<OutputNode, Scheduled, Self> {
-    dispose(): void;
+interface CompiledAudioCommand<Scheduled extends Stoppable, Self extends CompiledAudioCommand<Scheduled, Self>> extends Playable<Scheduled>, AudioCommand<Scheduled, Self> {
+    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, Scheduled, Self>;
 }
 type ScheduledCommand = {
     time_from_start(): Seconds;
     schedule_stop(stop_at?: TimeCoordinate): void;
+    add_on_stop_listener(listener: OnStopListener): void;
 };
-declare class Play<OutputNode extends AudioNode> implements AudioCommand<OutputNode, ScheduledCommand, CompiledPlay<OutputNode>> {
+declare class Play implements AudioCommand<ScheduledCommand, CompiledPlay> {
     readonly path: string;
     constructor(path: string);
-    compile(output_node: OutputNode): Promise<CompiledPlay<OutputNode>>;
+    compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledPlay>;
 }
-declare class CompiledPlay<OutputNode extends AudioNode> implements CompiledAudioCommand<OutputNode, ScheduledCommand, CompiledPlay<OutputNode>> {
-    readonly output_node: OutputNode;
+declare class CompiledPlay implements CompiledAudioCommand<ScheduledCommand, CompiledPlay> {
     readonly buffer: AudioBuffer;
     readonly duration: Seconds;
-    constructor(output_node: OutputNode, buffer: AudioBuffer);
-    schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): ScheduledCommand;
-    compile(output_node: OutputNode): Promise<CompiledPlay<OutputNode>>;
-    dispose(): void;
+    constructor(buffer: AudioBuffer);
+    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): ScheduledCommand;
+    compile<Context extends BaseAudioContext>(_: Context): Promise<CompiledPlay>;
+    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, ScheduledCommand, CompiledPlay>;
 }
-declare class Clip<ChildOutputNode extends AudioNode, ChildScheduled extends Stoppable, ChildCompileTo extends CompiledAudioCommand<ChildOutputNode, ChildScheduled, ChildCompileTo>, Child extends AudioCommand<ChildOutputNode, ChildScheduled, ChildCompileTo>> implements AudioCommand<ChildOutputNode, ChildScheduled, CompiledClip<ChildOutputNode, ChildScheduled, ChildCompileTo>> {
+declare class Clip<ChildScheduled extends Stoppable, ChildCompileTo extends CompiledAudioCommand<ChildScheduled, ChildCompileTo>, Child extends AudioCommand<ChildScheduled, ChildCompileTo>> implements AudioCommand<ChildScheduled, CompiledClip<ChildScheduled, ChildCompileTo>> {
     readonly to_clip: Child;
     readonly duration: Seconds;
     readonly offset: Seconds;
     constructor(to_clip: Child, duration: Seconds, offset?: Seconds);
-    compile(output_node: ChildOutputNode): Promise<CompiledClip<ChildOutputNode, ChildScheduled, ChildCompileTo>>;
+    compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledClip<ChildScheduled, ChildCompileTo>>;
 }
-declare class CompiledClip<ChildOutputNode extends AudioNode, ChildScheduled extends Stoppable, CompiledChild extends CompiledAudioCommand<ChildOutputNode, ChildScheduled, CompiledChild>> implements CompiledAudioCommand<ChildOutputNode, ChildScheduled, CompiledClip<ChildOutputNode, ChildScheduled, CompiledChild>> {
+declare class CompiledClip<ChildScheduled extends Stoppable, CompiledChild extends CompiledAudioCommand<ChildScheduled, CompiledChild>> implements CompiledAudioCommand<ChildScheduled, CompiledClip<ChildScheduled, CompiledChild>> {
     readonly to_clip: CompiledChild;
     readonly duration: Seconds;
     readonly offset: Seconds;
     constructor(to_clip: CompiledChild, duration: Seconds, offset?: Seconds);
-    get output_node(): ChildOutputNode;
-    schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): ChildScheduled;
-    compile(output_node: ChildOutputNode): Promise<CompiledClip<ChildOutputNode, ChildScheduled, CompiledChild>>;
-    dispose(): void;
+    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): ChildScheduled;
+    compile<Context extends BaseAudioContext>(_: Context): Promise<CompiledClip<ChildScheduled, CompiledChild>>;
+    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, ChildScheduled, CompiledClip<ChildScheduled, CompiledChild>>;
 }
-declare class Repeat<ChildOutputNode extends AudioNode, ChildScheduled extends Stoppable, ChildCompileTo extends CompiledAudioCommand<ChildOutputNode, ChildScheduled, ChildCompileTo>, Child extends AudioCommand<ChildOutputNode, ChildScheduled, ChildCompileTo>> implements AudioCommand<ChildOutputNode, ScheduledCommand, CompiledRepeat<ChildOutputNode, ChildScheduled, ChildCompileTo>> {
+declare class Repeat<ChildScheduled extends Stoppable, ChildCompileTo extends CompiledAudioCommand<ChildScheduled, ChildCompileTo>, Child extends AudioCommand<ChildScheduled, ChildCompileTo>> implements AudioCommand<ScheduledCommand, CompiledRepeat<ChildScheduled, ChildCompileTo>> {
     readonly to_repeat: Child;
     readonly duration: Seconds;
     constructor(to_repeat: Child, duration: Seconds);
-    compile(output_node: ChildOutputNode): Promise<CompiledRepeat<ChildOutputNode, ChildScheduled, ChildCompileTo>>;
+    compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledRepeat<ChildScheduled, ChildCompileTo>>;
 }
-declare class CompiledRepeat<ChildOutputNode extends AudioNode, ChildScheduled extends Stoppable, CompiledChild extends CompiledAudioCommand<ChildOutputNode, ChildScheduled, CompiledChild>> implements CompiledAudioCommand<ChildOutputNode, ScheduledCommand, CompiledRepeat<ChildOutputNode, ChildScheduled, CompiledChild>> {
+declare class CompiledRepeat<ChildScheduled extends Stoppable, CompiledChild extends CompiledAudioCommand<ChildScheduled, CompiledChild>> implements CompiledAudioCommand<ScheduledCommand, CompiledRepeat<ChildScheduled, CompiledChild>> {
     readonly to_repeat: CompiledChild;
     readonly duration: Seconds;
     constructor(to_repeat: CompiledChild, duration: Seconds);
-    get output_node(): ChildOutputNode;
-    schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): ScheduledCommand;
-    compile(output_node: ChildOutputNode): Promise<CompiledRepeat<ChildOutputNode, ChildScheduled, CompiledChild>>;
-    dispose(): void;
+    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): ScheduledCommand;
+    compile<Context extends BaseAudioContext>(_: Context): Promise<CompiledRepeat<ChildScheduled, CompiledChild>>;
+    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, ScheduledCommand, CompiledRepeat<ChildScheduled, CompiledChild>>;
 }
-type AnyCompiledCommand<OutputNode extends AudioNode> = CompiledAudioCommand<OutputNode, Stoppable, AnyCompiledCommand<OutputNode>>;
-type AnyCommand<OutputNode extends AudioNode> = AudioCommand<OutputNode, Stoppable, AnyCompiledCommand<OutputNode>>;
-declare class Sequence<ChildOutputNode extends AudioNode> implements AudioCommand<ChildOutputNode, ScheduledCommand, CompiledSequence<ChildOutputNode>> {
-    readonly sequence: AnyCommand<ChildOutputNode>[];
-    constructor(sequence: AnyCommand<ChildOutputNode>[]);
-    compile(output_node: ChildOutputNode): Promise<CompiledSequence<ChildOutputNode>>;
+type AnyCompiledCommand = CompiledAudioCommand<Stoppable, AnyCompiledCommand>;
+type AnyCommand = AudioCommand<Stoppable, AnyCompiledCommand>;
+declare class Sequence implements AudioCommand<ScheduledCommand, CompiledSequence> {
+    readonly sequence: AnyCommand[];
+    constructor(sequence: AnyCommand[]);
+    compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledSequence>;
 }
-declare class CompiledSequence<ChildOutputNode extends AudioNode> implements CompiledAudioCommand<ChildOutputNode, ScheduledCommand, CompiledSequence<ChildOutputNode>> {
-    readonly output_node: ChildOutputNode;
-    readonly sequence: AnyCompiledCommand<ChildOutputNode>[];
+declare class CompiledSequence implements CompiledAudioCommand<ScheduledCommand, CompiledSequence> {
+    readonly sequence: AnyCompiledCommand[];
     readonly duration: Seconds;
-    constructor(output_node: ChildOutputNode, sequence: AnyCompiledCommand<ChildOutputNode>[]);
-    schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): ScheduledCommand;
-    compile(output_node: ChildOutputNode): Promise<CompiledSequence<ChildOutputNode>>;
-    dispose(): void;
+    constructor(sequence: AnyCompiledCommand[]);
+    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): ScheduledCommand;
+    compile<Context extends BaseAudioContext>(_: Context): Promise<CompiledSequence>;
+    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, ScheduledCommand, CompiledSequence>;
 }
 type AudioParamTransition = undefined | "exponential" | "linear";
 type GainKeyframe = {
@@ -92,29 +88,37 @@ type GainKeyframe = {
     value: number;
     from_start: Seconds;
 };
-declare class Gain<OutputNode extends AudioNode, ChildScheduled extends Stoppable, CompiledChild extends CompiledAudioCommand<AudioNode, ChildScheduled, CompiledChild>, Child extends AudioCommand<AudioNode, ChildScheduled, CompiledChild>> implements AudioCommand<OutputNode, ScheduledCommand, CompiledGain<OutputNode, ChildScheduled, CompiledChild>> {
+declare class Gain<ChildScheduled extends Stoppable, CompiledChild extends CompiledAudioCommand<ChildScheduled, CompiledChild>, Child extends AudioCommand<ChildScheduled, CompiledChild>> implements AudioCommand<ScheduledCommand, CompiledGain<ChildScheduled, CompiledChild>> {
     readonly to_gain: Child;
     readonly gain_keyframes: GainKeyframe[];
     constructor(to_gain: Child, gain_keyframes: GainKeyframe[]);
-    compile(output_node: OutputNode): Promise<CompiledGain<OutputNode, ChildScheduled, CompiledChild>>;
+    compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledGain<ChildScheduled, CompiledChild>>;
 }
-declare class CompiledGain<OutputNode extends AudioNode, ChildScheduled extends Stoppable, CompiledChild extends CompiledAudioCommand<AudioNode, ChildScheduled, CompiledChild>> implements CompiledAudioCommand<OutputNode, ScheduledCommand, CompiledGain<OutputNode, ChildScheduled, CompiledChild>> {
-    readonly gain_node: GainNode;
-    readonly output_node: OutputNode;
+declare class CompiledGain<ChildScheduled extends Stoppable, CompiledChild extends CompiledAudioCommand<ChildScheduled, CompiledChild>> implements CompiledAudioCommand<ScheduledCommand, CompiledGain<ChildScheduled, CompiledChild>> {
     readonly to_gain: CompiledChild;
     readonly gain_keyframes: GainKeyframe[];
     get duration(): Seconds;
-    constructor(gain_node: GainNode, output_node: OutputNode, to_gain: CompiledChild, gain_keyframes: GainKeyframe[]);
-    schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): Stoppable;
-    compile(other_output_node: OutputNode): Promise<CompiledGain<OutputNode, ChildScheduled, CompiledChild>>;
-    dispose(): void;
+    constructor(to_gain: CompiledChild, gain_keyframes: GainKeyframe[]);
+    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): Stoppable;
+    compile<Context extends BaseAudioContext>(_: Context): Promise<CompiledGain<ChildScheduled, CompiledChild>>;
+    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, ScheduledCommand, CompiledGain<ChildScheduled, CompiledChild>>;
 }
-type CompileToOf<C> = C extends AudioCommand<any, any, infer To> ? To : never;
+type CompileToOf<C> = C extends AudioCommand<any, infer To> ? To : never;
+declare class Attached<OutputNode extends AudioNode, Scheduled extends Stoppable, Compiled extends CompiledAudioCommand<Scheduled, Compiled>> {
+    readonly compiled: Compiled;
+    readonly attach_to: OutputNode;
+    constructor(compiled: Compiled, attach_to: OutputNode);
+    get duration(): Seconds;
+    schedule_play(play_at?: TimeCoordinate, maybe_offset?: Seconds): Scheduled;
+    detach(): Compiled;
+}
 declare class RhythmContext {
     readonly context: AudioContext;
     constructor(context?: AudioContext);
-    compile<Command extends AudioCommand<AudioDestinationNode, Stoppable, any>>(command: Command): Promise<CompileToOf<Command>>;
     get current_time(): TimeCoordinate;
+    compile_attached<Command extends AudioCommand<Stoppable, any>>(command: Command): Promise<Attached<AudioDestinationNode, Stoppable, CompileToOf<Command>>>;
+    attach<Scheduled extends Stoppable, CompiledCommand extends CompiledAudioCommand<Scheduled, CompiledCommand>>(command: CompiledCommand): Attached<AudioDestinationNode, Stoppable, CompiledCommand>;
+    compile<Command extends AudioCommand<Stoppable, any>>(command: Command): Promise<CompileToOf<Command>>;
 }
 export { type Seconds, RhythmContext, Play, CompiledPlay, Clip, CompiledClip, Repeat, CompiledRepeat, Sequence, CompiledSequence, Gain, CompiledGain };
 //# sourceMappingURL=rhythm.d.ts.map

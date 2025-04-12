@@ -5,10 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rhythm JS Tests</title>
+    <link rel="stylesheet" href="./reset.css">
     <style>
         html,
         body {
-            margin: 0;
             width: 100%;
             height: 100%;
         }
@@ -17,16 +17,23 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            background-color: black;
+        }
+
+        * {
+            text-align: center;
+            color: white;
+            font-family: monospace;
         }
     </style>
 </head>
 
 <body>
-    <h1>Click in this document to start playing the music!</h1>
+    <h1 id="text">Click in this document to start playing the music!</h1>
 </body>
 
 <script type="module">
-    import { RhythmContext, Repeat, Sequence, Clip, Gain, Play } from "https://raw.githubusercontent.com/eliaxelang007/rhythm.js/refs/heads/main/dist/rhythm.esm.js";
+    import { RhythmContext, Repeat, Sequence, Clip, Gain, Play } from "../dist/rhythm.esm.js";
 
     let rhythm = null;
 
@@ -35,8 +42,11 @@
 
         rhythm = new RhythmContext();
 
+        const text_element = document.getElementById("text");
+        const display = (text) => { text_element.innerText = text; };
+
         async function play() {
-            console.log("Compiling audio commands...");
+            display("Compiling audio commands...");
 
             const clipped_song = await rhythm.compile(
                 new Clip(
@@ -52,30 +62,30 @@
                 [
                     {
                         value: 0.01,
-                        when_from_start: 0
+                        from_start: 0
                     },
                     {
                         transition: "exponential",
                         value: 1,
-                        when_from_start: 5
+                        from_start: 5
                     },
                     {
                         value: 1,
-                        when_from_start: clipped_song.duration - 5
+                        from_start: clipped_song.duration - 5
                     },
                     {
                         transition: "exponential",
                         value: 0.01,
-                        when_from_start: clipped_song.duration - 0.01
+                        from_start: clipped_song.duration - 0.01
                     },
                     {
                         value: 0,
-                        when_from_start: clipped_song.duration
+                        from_start: clipped_song.duration
                     },
                 ]
             );
 
-            const track = await rhythm.compile(
+            const track = await rhythm.compile_attached(
                 new Repeat(
                     new Sequence(
                         [
@@ -87,22 +97,26 @@
                 )
             );
 
-            console.log(`Audio commands compiled into a track! ${track}`);
+            display("Compiled audio commands into a track!");
 
-            console.log("Starting timer...");
+            display("Playing audio...");
 
             let seconds = 1;
 
-            setInterval(
+            const interval_handle = setInterval(
                 () => {
-                    console.log(seconds);
+                    display(`Playback Elapsed: ${seconds}`);
                     seconds += 1;
                 },
                 1000
             );
 
-            console.log("Playing audio...");
             const playing_track_instance = track.schedule_play();
+
+            playing_track_instance.add_on_stop_listener((event) => {
+                clearInterval(interval_handle);
+                display("Playback completed!");
+            });
         }
 
         play();
