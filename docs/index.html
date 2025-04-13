@@ -17,7 +17,9 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            background-color: black;
+            flex-direction: column;
+            background-color: #011638;
+            gap: 3rem;
         }
 
         * {
@@ -25,11 +27,30 @@
             color: white;
             font-family: monospace;
         }
+
+        button {
+            color: #6F8695;
+        }
+
+        button * {
+            color: black;
+        }
     </style>
 </head>
 
 <body>
-    <button>All</button>
+    <h1>Try one of the examples!</h1>
+    <button id="all">
+        <h1>All Commands Example</h1>
+    </button>
 </body>
+
+<script>
+    const all_button = document.getElementById("all");
+
+    all_button.onclick = () => {
+        window.location = "examples/all.html"
+    };
+</script>
 
 </html>

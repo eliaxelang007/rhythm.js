@@ -19,7 +19,7 @@ Find it on [npm](https://www.npmjs.com/package/rhythm.js) and [GitHub](https://g
 * Install with [npm](https://www.npmjs.com/package/rhythm.js): `npm install rhythm.js`
 * CDN using jsDelivr 
   * `<script src="https://cdn.jsdelivr.net/npm/rhythm.js@1.0.1/dist/rhythm.js"></script>` <br/> (You'll have to prefix your imports with `Rhythm.`)
-  * `import { /* Imports */ } from "https://cdn.jsdelivr.net/npm/rhythm.js@1.0.1/dist/rhythm.esm.js";`
+  * `import { /* Imports */ } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";`
 > The CDN may not update instantly once the latest version is released.
 
 ### Commands
@@ -154,7 +154,7 @@ We'll be using `./celery_in_a_carrot_field.ogg` as our example track's filepath.
 To play a track with rhythm.js, try this.
 
 ```typescript
-import { RhythmContext, Play } from "https://cdn.jsdelivr.net/npm/rhythm.js@1.0.1/dist/rhythm.esm.js";
+import { RhythmContext, Play } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
 
 async function play() {
     const command = new Play("./celery_in_a_carrot_field.ogg");
@@ -176,7 +176,7 @@ In this code snippet, `Clip` will create a track that starts 5 seconds
 into its child node, `Play`, and then plays its next 10 seconds.
 
 ```typescript
-import { RhythmContext, Play, Clip } from "https://cdn.jsdelivr.net/npm/rhythm.js@1.0.1/dist/rhythm.esm.js";
+import { RhythmContext, Play, Clip } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
 
 async function play() {
     const clip_duration_seconds = 10;
@@ -203,7 +203,7 @@ To repeat a track, do this.
 In this code snippet, once the `Repeat` node is scheduled to play, <br/> it will keep repeating the `Clip` node inside it while it hasn't been 20 seconds yet.
 
 ```typescript
-import { RhythmContext, Play, Clip, Repeat } from "https://cdn.jsdelivr.net/npm/rhythm.js@1.0.1/dist/rhythm.esm.js";
+import { RhythmContext, Play, Clip, Repeat } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
 
 async function play() {
     const clip_duration_seconds = 10;
@@ -235,7 +235,7 @@ To play tracks one after the other, do this.
 `Sequence` will play the `Clip` inside of it first, and when it ends will play the `Repeat` inside it next.
 
 ```typescript
-import { RhythmContext, Play, Clip, Repeat, Sequence } from "https://cdn.jsdelivr.net/npm/rhythm.js@1.0.1/dist/rhythm.esm.js";
+import { RhythmContext, Play, Clip, Repeat, Sequence } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
 
 async function play() {
     const song = new Play("./celery_in_a_carrot_field.ogg");
@@ -262,7 +262,7 @@ To change the volume of a track throughout its playback, try this.
 `Gain` here adds a 20 second exponential fade in and fade out to the track.
 
 ```typescript
-import { RhythmContext, Play, Gain } from "https://cdn.jsdelivr.net/npm/rhythm.js@1.0.1/dist/rhythm.esm.js";
+import { RhythmContext, Play, Gain } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
 
 async function play() {
     const song = new Play("./celery_in_a_carrot_field.ogg");
