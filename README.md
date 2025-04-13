@@ -148,6 +148,7 @@ scheduled.add_on_stop_listener((event) => { /* Code to run when the track has fi
 ## Examples
 
 We'll be using `./celery_in_a_carrot_field.ogg` as our example track's filepath.
+> See the examples live [here](https://eliaxelang007.github.io/rhythm.js/)!
 
 ### Play
 
