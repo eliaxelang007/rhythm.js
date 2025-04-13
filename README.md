@@ -11,7 +11,7 @@ It's like a declarative UI framework, but for audio.
 
 ### See an example live [here](https://eliaxelang007.github.io/rhythm.js/)!
 
-> Find it on [npm](https://www.npmjs.com/package/rhythm.js) and [GitHub](https://github.com/eliaxelang007/rhythm.js).
+> Find Rhythm.js on [npm](https://www.npmjs.com/package/rhythm.js) and [GitHub](https://github.com/eliaxelang007/rhythm.js).
 
 ## Documentation
 
