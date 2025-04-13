@@ -10,6 +10,7 @@ And, you can treat **Compiled Audio Commands** just like uncompiled ones!
 It's like a declarative UI framework, but for audio.
 
 Find it on [npm](https://www.npmjs.com/package/rhythm.js) and [GitHub](https://github.com/eliaxelang007/rhythm.js).
+> See an example live [here](https://eliaxelang007.github.io/rhythm.js/)!
 
 ## Documentation
 
@@ -148,7 +149,7 @@ scheduled.add_on_stop_listener((event) => { /* Code to run when the track has fi
 ## Examples
 
 We'll be using `./celery_in_a_carrot_field.ogg` as our example track's filepath.
-> See the examples live [here](https://eliaxelang007.github.io/rhythm.js/)!
+> See an example live [here](https://eliaxelang007.github.io/rhythm.js/)!
 
 ### Play
 
