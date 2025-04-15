@@ -22,7 +22,8 @@ It's like a declarative UI framework, but for audio.
 * CDN using jsDelivr 
   * `<script src="https://cdn.jsdelivr.net/npm/rhythm.js@1.0.1/dist/rhythm.js"></script>` <br/> (You'll have to prefix your imports with `Rhythm.`)
   * `import { /* Imports */ } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";`
-> The CDN may not update instantly once the latest version is released.
+
+#### The CDN may not update instantly once the latest version is released.
 
 ### Commands
 
@@ -288,6 +289,8 @@ async function play() {
     const compiled_song = await rhythm.compile( // See [RhythmContext] section of the readme.
         new Play("./celery_in_a_carrot_field.ogg")
     ); 
+
+    const fade_duration_seconds = 20;
 
     const faded_song = await rhythm.compile_attached(
         new Gain(

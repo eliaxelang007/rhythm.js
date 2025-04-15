@@ -33,7 +33,7 @@
 </body>
 
 <script type="module">
-    import { RhythmContext, Repeat, Sequence, Clip, Gain, Play } from "../../dist/rhythm.esm.js"; // from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
+    import { RhythmContext, Repeat, Sequence, Clip, Gain, Play } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
 
     let rhythm = null;
 
@@ -89,16 +89,16 @@
             );
 
             const track = await rhythm.compile_attached(
-                new Repeat(
-                    {
-                        duration: 50
-                    },
-                    new Sequence(
-                        [
-                            fade_in_out,
+                new Sequence(
+                    [
+                        new Repeat(
+                            {
+                                duration: 40
+                            },
                             fade_in_out
-                        ]
-                    ),
+                        ),
+                        fade_in_out
+                    ]
                 )
             );
 
@@ -120,7 +120,7 @@
 
             playing_track_instance.add_on_stop_listener((event) => {
                 clearInterval(interval_handle);
-                display("Playback completed! (It's intentional that it's abrupt.)");
+                display("Playback completed; check out this page's source code!");
             });
         }
 
