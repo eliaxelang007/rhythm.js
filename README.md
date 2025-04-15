@@ -20,7 +20,7 @@ It's like a declarative UI framework, but for audio.
 * Clone the [repo](https://github.com/eliaxelang007/rhythm.js): `git clone https://github.com/eliaxelang007/rhythm.js.git`
 * Install with [npm](https://www.npmjs.com/package/rhythm.js): `npm install rhythm.js`
 * CDN using jsDelivr 
-  * `<script src="https://cdn.jsdelivr.net/npm/rhythm.js@1.0.1/dist/rhythm.js"></script>` <br/> (You'll have to prefix your imports with `Rhythm.`)
+  * `<script src="https://cdn.jsdelivr.net/npm/rhythm.js@1.1.5dist/rhythm.js"></script>` <br/> (You'll have to prefix your imports with `Rhythm.`)
   * `import { /* Imports */ } from "https://cdn.jsdelivr.net/npm/rhythm.js@1.1.5/dist/rhythm.esm.js";`
 
 #### The CDN may not update instantly once the latest version is released.
