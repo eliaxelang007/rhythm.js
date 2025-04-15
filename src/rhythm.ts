@@ -5,31 +5,31 @@ type TimeCoordinate = NewType<Seconds>;
 
 type OnStopListener = (event: Event) => any;
 
-interface Stoppable {
-    time_from_start(): Seconds;
+type Scheduled = {
+    start_time: TimeCoordinate;
+    end_time: TimeCoordinate;
+
     schedule_stop(stop_at?: TimeCoordinate): void;
     add_on_stop_listener(listener: OnStopListener): void;
 }
 
-interface Playable<Scheduled extends Stoppable> {
+interface Playable {
     schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): Scheduled;
     get duration(): Seconds;
 }
 
 interface AudioCommand<
-    Scheduled extends Stoppable,
-    CompileTo extends CompiledAudioCommand<Scheduled, CompileTo>
+    CompileTo extends CompiledAudioCommand<CompileTo>
 > {
     compile<Context extends BaseAudioContext>(context: Context): Promise<CompileTo>;
 }
 
 interface CompiledAudioCommand<
-    Scheduled extends Stoppable,
-    Self extends CompiledAudioCommand<Scheduled, Self>
+    Self extends CompiledAudioCommand<Self>
 > extends
-    Playable<Scheduled>,
-    AudioCommand<Scheduled, Self> {
-    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, Scheduled, Self>;
+    Playable,
+    AudioCommand<Self> {
+    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, Self>;
 }
 
 function pinpoint(coordinate: TimeCoordinate | undefined, current_time: number): TimeCoordinate {
@@ -39,13 +39,7 @@ function pinpoint(coordinate: TimeCoordinate | undefined, current_time: number):
     ) ? coordinate : (current_time as TimeCoordinate);
 }
 
-type ScheduledCommand = {
-    time_from_start(): Seconds;
-    schedule_stop(stop_at?: TimeCoordinate): void;
-    add_on_stop_listener(listener: OnStopListener): void;
-};
-
-class Play implements AudioCommand<ScheduledCommand, CompiledPlay> {
+class Play implements AudioCommand<CompiledPlay> {
     constructor(readonly path: string) { }
 
     async compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledPlay> {
@@ -58,7 +52,7 @@ class Play implements AudioCommand<ScheduledCommand, CompiledPlay> {
     }
 }
 
-class CompiledPlay implements CompiledAudioCommand<ScheduledCommand, CompiledPlay> {
+class CompiledPlay implements CompiledAudioCommand<CompiledPlay> {
     readonly duration: Seconds;
 
     constructor(
@@ -67,7 +61,7 @@ class CompiledPlay implements CompiledAudioCommand<ScheduledCommand, CompiledPla
         this.duration = buffer.duration as Seconds;
     }
 
-    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): ScheduledCommand {
+    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): Scheduled {
         const context = output_node.context;
 
         const player = context.createBufferSource();
@@ -89,15 +83,16 @@ class CompiledPlay implements CompiledAudioCommand<ScheduledCommand, CompiledPla
 
         const start_time = pinpoint(play_at, context.currentTime);
 
-        player.start(start_time, maybe_offset);
+        const offset = maybe_offset ?? 0;
+
+        player.start(start_time, offset);
 
         return {
             schedule_stop: (stop_at?: TimeCoordinate) => {
                 player.stop(stop_at);
             },
-            time_from_start: () => {
-                return (context.currentTime - start_time) as Seconds;
-            },
+            start_time: start_time,
+            end_time: (start_time + (this.duration - offset)) as TimeCoordinate,
             add_on_stop_listener: (listener: OnStopListener) => on_stop_listeners.push(listener)
         };
     }
@@ -106,8 +101,8 @@ class CompiledPlay implements CompiledAudioCommand<ScheduledCommand, CompiledPla
         return this;
     }
 
-    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, ScheduledCommand, CompiledPlay> {
-        return new Attached<OutputNode, ScheduledCommand, CompiledPlay>(
+    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, CompiledPlay> {
+        return new Attached<OutputNode, CompiledPlay>(
             this,
             output_node
         );
@@ -115,54 +110,62 @@ class CompiledPlay implements CompiledAudioCommand<ScheduledCommand, CompiledPla
 }
 
 class Clip<
-    ChildScheduled extends Stoppable,
-    ChildCompileTo extends CompiledAudioCommand<ChildScheduled, ChildCompileTo>,
-    Child extends AudioCommand<ChildScheduled, ChildCompileTo>
-> implements AudioCommand<ChildScheduled, CompiledClip<ChildScheduled, ChildCompileTo>> {
-    constructor(
-        readonly to_clip: Child,
-        readonly duration: Seconds,
-        readonly offset: Seconds = (0 as Seconds)
-    ) { }
+    ChildCompileTo extends CompiledAudioCommand<ChildCompileTo>,
+    Child extends AudioCommand<ChildCompileTo>
+> implements AudioCommand<CompiledClip<ChildCompileTo>> {
+    readonly offset: Seconds;
+    readonly duration: Seconds;
 
-    async compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledClip<ChildScheduled, ChildCompileTo>> {
+    constructor(
+        { offset, duration }: { offset: Seconds, duration: Seconds },
+        readonly child: Child
+    ) {
+        this.offset = offset;
+        this.duration = duration;
+    }
+
+    async compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledClip<ChildCompileTo>> {
         return new CompiledClip(
-            await this.to_clip.compile(context),
-            this.duration,
-            this.offset
+            await this.child.compile(context),
+            this.offset,
+            this.duration
         );
     }
 }
 
 class CompiledClip<
-    ChildScheduled extends Stoppable,
-    CompiledChild extends CompiledAudioCommand<ChildScheduled, CompiledChild>
-> implements CompiledAudioCommand<ChildScheduled, CompiledClip<ChildScheduled, CompiledChild>> {
+    CompiledChild extends CompiledAudioCommand<CompiledChild>
+> implements CompiledAudioCommand<CompiledClip<CompiledChild>> {
     constructor(
-        readonly to_clip: CompiledChild,
-        readonly duration: Seconds,
-        readonly offset: Seconds = (0 as Seconds)
+        readonly child: CompiledChild,
+        readonly offset: Seconds = (0 as Seconds),
+        readonly duration: Seconds
     ) {
     }
 
-    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): ChildScheduled {
+    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): Scheduled {
         const start_time = pinpoint(play_at, output_node.context.currentTime);
         const offset = maybe_offset ?? 0;
 
-        const command = this.to_clip;
+        const command = this.child;
 
         const scheduled = command.schedule_play(output_node, start_time, (this.offset + offset) as Seconds);
-        scheduled.schedule_stop((start_time + (this.duration - offset)) as Seconds);
+        const end_time = (start_time + (this.duration - offset)) as TimeCoordinate;
 
-        return scheduled;
+        scheduled.schedule_stop(end_time);
+
+        return {
+            ...scheduled,
+            end_time: end_time
+        };
     }
 
-    async compile<Context extends BaseAudioContext>(_: Context): Promise<CompiledClip<ChildScheduled, CompiledChild>> {
+    async compile<Context extends BaseAudioContext>(_: Context): Promise<CompiledClip<CompiledChild>> {
         return this;
     }
 
-    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, ChildScheduled, CompiledClip<ChildScheduled, CompiledChild>> {
-        return new Attached<OutputNode, ChildScheduled, CompiledClip<ChildScheduled, CompiledChild>>(
+    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, CompiledClip<CompiledChild>> {
+        return new Attached<OutputNode, CompiledClip<CompiledChild>>(
             this,
             output_node
         );
@@ -170,36 +173,38 @@ class CompiledClip<
 }
 
 class Repeat<
-    ChildScheduled extends Stoppable,
-    ChildCompileTo extends CompiledAudioCommand<ChildScheduled, ChildCompileTo>,
-    Child extends AudioCommand<ChildScheduled, ChildCompileTo>
-> implements AudioCommand<ScheduledCommand, CompiledRepeat<ChildScheduled, ChildCompileTo>> {
-    constructor(
-        readonly to_repeat: Child,
-        readonly duration: Seconds
-    ) { }
+    ChildCompileTo extends CompiledAudioCommand<ChildCompileTo>,
+    Child extends AudioCommand<ChildCompileTo>
+> implements AudioCommand<CompiledRepeat<ChildCompileTo>> {
+    readonly duration: Seconds;
 
-    async compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledRepeat<ChildScheduled, ChildCompileTo>> {
+    constructor(
+        { duration }: { duration: Seconds },
+        readonly child: Child
+    ) {
+        this.duration = duration;
+    }
+
+    async compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledRepeat<ChildCompileTo>> {
         return new CompiledRepeat(
-            await this.to_repeat.compile(context),
+            await this.child.compile(context),
             this.duration
         );
     }
 }
 
 class CompiledRepeat<
-    ChildScheduled extends Stoppable,
-    CompiledChild extends CompiledAudioCommand<ChildScheduled, CompiledChild>
-> implements CompiledAudioCommand<ScheduledCommand, CompiledRepeat<ChildScheduled, CompiledChild>> {
+    CompiledChild extends CompiledAudioCommand<CompiledChild>
+> implements CompiledAudioCommand<CompiledRepeat<CompiledChild>> {
     constructor(
-        readonly to_repeat: CompiledChild,
+        readonly child: CompiledChild,
         readonly duration: Seconds
     ) { }
 
-    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): ScheduledCommand {
+    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): Scheduled {
         const offset = maybe_offset ?? 0;
 
-        const command = this.to_repeat;
+        const command = this.child;
         const command_duration = command.duration;
         const duration = this.duration;
 
@@ -210,7 +215,7 @@ class CompiledRepeat<
         let repeat_offset = (offset % command_duration) as Seconds;
         let til_next_repeat = start_time;
 
-        const repeats: Stoppable[] = [];
+        const repeats: Scheduled[] = [];
 
         while (remaining_duration > 0) {
             repeats.push(command.schedule_play(output_node, til_next_repeat, repeat_offset as Seconds));
@@ -224,7 +229,8 @@ class CompiledRepeat<
 
         const last_scheduled = repeats.at(-1);
 
-        last_scheduled?.schedule_stop(start_time + (duration - offset) as Seconds);
+        const end_time = start_time + (duration - offset) as TimeCoordinate;
+        last_scheduled?.schedule_stop(end_time);
 
         return {
             schedule_stop: (stop_at?: TimeCoordinate) => {
@@ -232,37 +238,36 @@ class CompiledRepeat<
                     scheduled.schedule_stop(stop_at);
                 }
             },
-            time_from_start: () => {
-                return (context.currentTime - start_time) as Seconds;
-            },
+            start_time: start_time,
+            end_time: end_time,
             add_on_stop_listener: (listener: OnStopListener) => {
                 last_scheduled?.add_on_stop_listener(listener)
             }
         };
     }
 
-    async compile<Context extends BaseAudioContext>(_: Context): Promise<CompiledRepeat<ChildScheduled, CompiledChild>> {
+    async compile<Context extends BaseAudioContext>(_: Context): Promise<CompiledRepeat<CompiledChild>> {
         return this;
     }
 
-    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, ScheduledCommand, CompiledRepeat<ChildScheduled, CompiledChild>> {
-        return new Attached<OutputNode, ScheduledCommand, CompiledRepeat<ChildScheduled, CompiledChild>>(
+    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, CompiledRepeat<CompiledChild>> {
+        return new Attached<OutputNode, CompiledRepeat<CompiledChild>>(
             this,
             output_node
         );
     }
 }
 
-type AnyCompiledCommand = CompiledAudioCommand<Stoppable, AnyCompiledCommand>;
-type AnyCommand = AudioCommand<Stoppable, AnyCompiledCommand>;
+type AnyCompiledCommand = CompiledAudioCommand<AnyCompiledCommand>;
+type AnyCommand = AudioCommand<AnyCompiledCommand>;
 
-class Sequence implements AudioCommand<ScheduledCommand, CompiledSequence> {
-    constructor(readonly sequence: AnyCommand[]) { }
+class Sequence implements AudioCommand<CompiledSequence> {
+    constructor(readonly children: AnyCommand[]) { }
 
     async compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledSequence> {
         return new CompiledSequence(
             await Promise.all(
-                this.sequence.map((compilable) =>
+                this.children.map((compilable) =>
                     compilable.compile(context)
                 )
             )
@@ -270,13 +275,13 @@ class Sequence implements AudioCommand<ScheduledCommand, CompiledSequence> {
     }
 }
 
-class CompiledSequence implements CompiledAudioCommand<ScheduledCommand, CompiledSequence> {
+class CompiledSequence implements CompiledAudioCommand<CompiledSequence> {
     readonly duration: Seconds;
 
     constructor(
-        readonly sequence: AnyCompiledCommand[],
+        readonly children: AnyCompiledCommand[],
     ) {
-        this.duration = sequence
+        this.duration = children
             .map((command) => command.duration)
             .reduce(
                 (total_duration, duration) => total_duration + duration,
@@ -284,17 +289,19 @@ class CompiledSequence implements CompiledAudioCommand<ScheduledCommand, Compile
             ) as Seconds;
     }
 
-    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): ScheduledCommand {
+    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): Scheduled {
         const context = output_node.context;
 
         const start_time = pinpoint(play_at, context.currentTime);
-        let offset = (maybe_offset ?? 0) as Seconds;
+        const offset = (maybe_offset ?? 0) as Seconds;
 
-        const iterator = this.sequence.values();
+        let start_search_offset = offset;
+
+        const iterator = this.children.values();
 
         let next_start_time = 0 as Seconds;
 
-        const sequenced: Stoppable[] = [];
+        const sequenced: Scheduled[] = [];
 
         while (true) {
             const { value: command, done } = iterator.next();
@@ -305,17 +312,17 @@ class CompiledSequence implements CompiledAudioCommand<ScheduledCommand, Compile
 
             const command_duration = command.duration;
 
-            if (offset < command_duration) {
-                sequenced.push(command.schedule_play(output_node, start_time, offset));
+            if (start_search_offset < command_duration) {
+                sequenced.push(command.schedule_play(output_node, start_time, start_search_offset));
 
                 next_start_time = (
-                    start_time + (command_duration - offset)
+                    start_time + (command_duration - start_search_offset)
                 ) as Seconds;
 
                 break;
             }
 
-            offset = (offset - command_duration) as Seconds;
+            start_search_offset = (start_search_offset - command_duration) as Seconds;
         }
 
         while (true) {
@@ -338,9 +345,8 @@ class CompiledSequence implements CompiledAudioCommand<ScheduledCommand, Compile
                     scheduled.schedule_stop(stop_at);
                 }
             },
-            time_from_start: () => {
-                return (context.currentTime - start_time) as Seconds;
-            },
+            start_time: start_time,
+            end_time: (start_time + (this.duration - offset)) as TimeCoordinate,
             add_on_stop_listener: (listener: OnStopListener) => {
                 last_scheduled?.add_on_stop_listener(listener)
             }
@@ -351,8 +357,8 @@ class CompiledSequence implements CompiledAudioCommand<ScheduledCommand, Compile
         return this;
     }
 
-    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, ScheduledCommand, CompiledSequence> {
-        return new Attached<OutputNode, ScheduledCommand, CompiledSequence>(
+    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, CompiledSequence> {
+        return new Attached<OutputNode, CompiledSequence>(
             this,
             output_node
         );
@@ -368,37 +374,40 @@ type GainKeyframe = {
 };
 
 class Gain<
-    ChildScheduled extends Stoppable,
-    CompiledChild extends CompiledAudioCommand<ChildScheduled, CompiledChild>,
-    Child extends AudioCommand<ChildScheduled, CompiledChild>
-> implements AudioCommand<ScheduledCommand, CompiledGain<ChildScheduled, CompiledChild>> {
-    constructor(
-        readonly to_gain: Child,
-        readonly gain_keyframes: GainKeyframe[]
-    ) { }
+    CompiledChild extends CompiledAudioCommand<CompiledChild>,
+    Child extends AudioCommand<CompiledChild>
+> implements AudioCommand<CompiledGain<CompiledChild>> {
+    readonly gain_keyframes: GainKeyframe[];
 
-    async compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledGain<ChildScheduled, CompiledChild>> {
+    constructor(
+        { gain_keyframes }: { gain_keyframes: GainKeyframe[] },
+        readonly child: Child
+    ) {
+        this.gain_keyframes = gain_keyframes;
+        this.child = child;
+    }
+
+    async compile<Context extends BaseAudioContext>(context: Context): Promise<CompiledGain<CompiledChild>> {
         return new CompiledGain(
-            await this.to_gain.compile(context),
+            await this.child.compile(context),
             this.gain_keyframes
         );
     }
 }
 
 class CompiledGain<
-    ChildScheduled extends Stoppable,
-    CompiledChild extends CompiledAudioCommand<ChildScheduled, CompiledChild>
-> implements CompiledAudioCommand<ScheduledCommand, CompiledGain<ChildScheduled, CompiledChild>> {
+    CompiledChild extends CompiledAudioCommand<CompiledChild>
+> implements CompiledAudioCommand<CompiledGain<CompiledChild>> {
     get duration(): Seconds {
-        return this.to_gain.duration;
+        return this.child.duration;
     }
 
     constructor(
-        readonly to_gain: CompiledChild,
+        readonly child: CompiledChild,
         readonly gain_keyframes: GainKeyframe[],
     ) { }
 
-    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): Stoppable {
+    schedule_play<OutputNode extends AudioNode>(output_node: OutputNode, play_at?: TimeCoordinate, maybe_offset?: Seconds): Scheduled {
         const context = output_node.context;
         const gain_node = context.createGain();
 
@@ -409,7 +418,7 @@ class CompiledGain<
         const start_time = pinpoint(play_at, context.currentTime);
         const offset = maybe_offset ?? 0;
 
-        const scheduled = this.to_gain.schedule_play(gain_node, start_time, offset as Seconds);
+        const scheduled = this.child.schedule_play(gain_node, start_time, offset as Seconds);
 
         const original_value = gain.value;
 
@@ -440,6 +449,7 @@ class CompiledGain<
         );
 
         return {
+            ...scheduled,
             schedule_stop: (stop_at?: TimeCoordinate) => {
                 const stop_time = pinpoint(stop_at, context.currentTime);
 
@@ -447,32 +457,27 @@ class CompiledGain<
 
                 gain.cancelScheduledValues(stop_time);
                 gain.setValueAtTime(original_value, stop_time);
-            },
-            time_from_start: () => {
-                return scheduled.time_from_start();
-            },
-            add_on_stop_listener: (listener: OnStopListener) => scheduled.add_on_stop_listener(listener)
+            }
         };
     }
 
-    async compile<Context extends BaseAudioContext>(_: Context): Promise<CompiledGain<ChildScheduled, CompiledChild>> {
+    async compile<Context extends BaseAudioContext>(_: Context): Promise<CompiledGain<CompiledChild>> {
         return this;
     }
 
-    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, ScheduledCommand, CompiledGain<ChildScheduled, CompiledChild>> {
-        return new Attached<OutputNode, ScheduledCommand, CompiledGain<ChildScheduled, CompiledChild>>(
+    attach_to<OutputNode extends AudioNode>(output_node: OutputNode): Attached<OutputNode, CompiledGain<CompiledChild>> {
+        return new Attached<OutputNode, CompiledGain<CompiledChild>>(
             this,
             output_node
         );
     }
 }
 
-type CompileToOf<C> = C extends AudioCommand<any, infer To> ? To : never;
+type CompileToOf<C> = C extends AudioCommand<infer To> ? To : never;
 
 class Attached<
     OutputNode extends AudioNode,
-    Scheduled extends Stoppable,
-    Compiled extends CompiledAudioCommand<Scheduled, Compiled>,
+    Compiled extends CompiledAudioCommand<Compiled>
 > {
     constructor(
         readonly compiled: Compiled,
@@ -504,24 +509,23 @@ class RhythmContext {
     }
 
     async compile_attached<
-        Command extends AudioCommand<Stoppable, any>,
+        Command extends AudioCommand<any>,
     >(
         command: Command
-    ): Promise<Attached<AudioDestinationNode, Stoppable, CompileToOf<Command>>> {
+    ): Promise<Attached<AudioDestinationNode, CompileToOf<Command>>> {
         return this.attach(await this.compile(command));
     }
 
     attach<
-        Scheduled extends Stoppable,
-        CompiledCommand extends CompiledAudioCommand<Scheduled, CompiledCommand>,
+        CompiledCommand extends CompiledAudioCommand<CompiledCommand>,
     >(
         command: CompiledCommand,
-    ): Attached<AudioDestinationNode, Stoppable, CompiledCommand> {
+    ): Attached<AudioDestinationNode, CompiledCommand> {
         return command.attach_to(this.context.destination);
     }
 
     compile<
-        Command extends AudioCommand<Stoppable, any>,
+        Command extends AudioCommand<any>,
     >(
         command: Command
     ): Promise<CompileToOf<Command>> {

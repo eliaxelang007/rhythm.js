@@ -33,7 +33,7 @@
 </body>
 
 <script type="module">
-    import { RhythmContext, Repeat, Sequence, Clip, Gain, Play } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
+    import { RhythmContext, Repeat, Sequence, Clip, Gain, Play } from "../../dist/rhythm.esm.js"; // from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
 
     let rhythm = null;
 
@@ -50,50 +50,55 @@
 
             const clipped_song = await rhythm.compile(
                 new Clip(
-                    new Play(
-                        "./celery_in_a_carrot_field.ogg"
-                    ),
-                    20
+                    {
+                        offset: 5,
+                        duration: 20
+                    },
+                    new Play("./celery_in_a_carrot_field.ogg")
                 )
             );
 
             const fade_in_out = new Gain(
+                {
+                    gain_keyframes: [
+                        {
+                            value: 0.01,
+                            from_start: 0
+                        },
+                        {
+                            transition: "exponential",
+                            value: 1,
+                            from_start: 5
+                        },
+                        {
+                            value: 1,
+                            from_start: clipped_song.duration - 5
+                        },
+                        {
+                            transition: "exponential",
+                            value: 0.01,
+                            from_start: clipped_song.duration - 0.01
+                        },
+                        {
+                            value: 0,
+                            from_start: clipped_song.duration
+                        },
+                    ]
+                },
                 clipped_song,
-                [
-                    {
-                        value: 0.01,
-                        from_start: 0
-                    },
-                    {
-                        transition: "exponential",
-                        value: 1,
-                        from_start: 5
-                    },
-                    {
-                        value: 1,
-                        from_start: clipped_song.duration - 5
-                    },
-                    {
-                        transition: "exponential",
-                        value: 0.01,
-                        from_start: clipped_song.duration - 0.01
-                    },
-                    {
-                        value: 0,
-                        from_start: clipped_song.duration
-                    },
-                ]
             );
 
             const track = await rhythm.compile_attached(
                 new Repeat(
+                    {
+                        duration: 50
+                    },
                     new Sequence(
                         [
                             fade_in_out,
                             fade_in_out
                         ]
                     ),
-                    50
                 )
             );
 

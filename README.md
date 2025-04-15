@@ -31,10 +31,10 @@ Here's a list of the currently available audio commands.
 | AudioCommand | Description |
 | --- | --- |
 | `Play(path: string)` | The most basic audio command. Plays the audio file specified in `path`. |
-| `Clip(to_clip: AudioCommand, duration: Seconds, offset: Seconds = 0)` | Creates a clip of its child command starting at `offset` and playing from there for `duration`. |
-| `Repeat(to_repeat: AudioCommand, duration: Seconds)` | Repeats its child command until it fits into `duration`. |
-| `Sequence(sequence: AudioCommand[])` | Plays each command in `sequence` one after the other. |
-| `Gain(to_gain: AudioCommand, gain_keyframes: GainKeyframe[]) ` | Plays its child command normally but `gain_keyframes` lets you control how the volume will change over time. |
+| `Clip({ offset: Seconds, duration: Seconds }, child: AudioCommand)` | Creates a clip of its `child` command starting at `offset` and playing from there for `duration`. |
+| `Repeat({ duration: Seconds }, child: AudioCommand)` | Repeats its `child` command until it fits into `duration`. |
+| `Sequence(children: AudioCommand[])` | Plays each command in `children` one after the other. |
+| `Gain({ gain_keyframes: GainKeyframe[] }, child: AudioCommand) ` | Plays its `child` command while letting `gain_keyframes` control how the volume will change over time. |
 
 ### General Usage
 
@@ -42,12 +42,16 @@ First make a command,
 
 ```typescript
 const some_command = new Repeat(
+    {
+        duration: 20 // Repeat my child command for 20 seconds.
+    },
     new Clip(
+        {
+            offset: 5, // Starting 5 seconds into my child command,
+            duration: 10 // play 10 seconds.
+        },
         new Play("example.mp3"), 
-        10, // Play 10 seconds 
-        5   // starting 5 seconds into my child command.
-    ), 
-    20 // Repeat my child command for 20 seconds.
+    )
 );
 ```
 
@@ -73,7 +77,7 @@ track.schedule_play(rhythm.current_time + 1, 3);
 
 > `rhythm.current_time` is an alias for the `currentTime` of the `RhythmContext`'s inner `AudioContext`.
 
-Each time you call play, it gives you a handle to the scheduled instance of the track. `schedule_stop` works just like [`AudioScheduledSourceNode.stop`](https://developer.mozilla.org/en-US/docs/Web/API/AudioScheduledSourceNode/stop).
+Each time you call play, it gives you a handle to the scheduled instance of the track. On the handle, `schedule_stop` works just like [`AudioScheduledSourceNode.stop`](https://developer.mozilla.org/en-US/docs/Web/API/AudioScheduledSourceNode/stop).
 
 ```typescript
 const now = rhythm.current_time;
@@ -82,17 +86,18 @@ const scheduled = track.schedule_play(now);
 scheduled.schedule_stop(now + 2); // Stops the track 2 seconds after it starts.
 ```
 
-You can also determine how far the current time is from when you scheduled a play with `time_from_start`.
+The handle also has `start_time` and `end_time` which stores when the command is scheduled for.
 
 ```typescript
-const scheduled = track.schedule_play();
+const start_at = rhythm.current_time + 1;
+const offset = 3;
 
-// Wait 2 seconds...
+// Starts the track 1 second from now with playback beginning at 3 seconds into the track.
+const scheduled = track.schedule_play(start_at, offset);
 
-schedule.time_from_start() // Should return 2.
+scheduled.start_time // Will be equal to [start_at]
+scheduled.end_time // Will be equal to [start_at + (track.duration - offset)] 
 ```
-> `time_from_start` can return negative values if you call it before the start time you specified in `schedule_play`
-
 ---
 
 Once a command is compiled, you have access to its duration.
@@ -108,14 +113,16 @@ You can see an example of this in the code snippet below.
 ```typescript
 const track = await rhythm.compile(new Play("example.mp3"));
 
-const new_track = await rhythm.compile_attached(
+const played_twice = await rhythm.compile_attached(
   new Repeat(
-    track,
-    track.duration * 2 // Repeat the track twice.
+    {
+        duration: track.duration * 2 // This makes the [track] play twice.
+    },
+    track
   )
 );
 
-new_track.scheduled_play();
+played_twice.scheduled_play();
 ```
 > Loading audio tracks happens in the compilation stage, and since the `Play` inside `track` has already been compiled, `await rhythm.compile_attached` here runs almost instantly!
 
@@ -136,16 +143,16 @@ Here's what the methods of `RhythmContext` do.
 
 If you want to run some code once a track has completed playing, do this.
 
-### Advanced
-
-If you'd like, you can read through the only 500 lines of code that make up this library. That way, you'll gain a fuller grasp of its inner workings.
-> I've tried to cover all the features comprehensively in this readme though, but still feel free to peek around!
-
 ```typescript
 const scheduled = track.schedule_play();
 
 scheduled.add_on_stop_listener((event) => { /* Code to run when the track has finished playing. */ });
 ```
+
+### Advanced
+
+If you'd like, you can read through the only 500 lines of code that make up this library. That way, you'll gain a fuller grasp of its inner workings.
+> I've tried to cover all the features comprehensively in this readme though, but still feel free to peek around!
 
 ## Examples
 
@@ -182,13 +189,12 @@ into its child node, `Play`, and then plays its next 10 seconds.
 import { RhythmContext, Play, Clip } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
 
 async function play() {
-    const clip_duration_seconds = 10;
-    const start_at_seconds = 5;
-
     const command = new Clip(
-        new Play("./celery_in_a_carrot_field.ogg"),
-        clip_duration_seconds,
-        start_at_seconds
+        {
+            offset: 5,
+            duration: 10
+        },
+        new Play("./celery_in_a_carrot_field.ogg")
     );
 
     const rhythm = new RhythmContext();
@@ -203,24 +209,23 @@ play();
 ### Repeat
 
 To repeat a track, do this.
-In this code snippet, once the `Repeat` node is scheduled to play, <br/> it will keep repeating the `Clip` node inside it while it hasn't been 20 seconds yet.
+In this code snippet, once the `Repeat` node is scheduled to play, <br/> it will keep repeating the `Clip` node inside it while it hasn't been 20 seconds yet, in effect making the `Clip` play twice.
 
 ```typescript
 import { RhythmContext, Play, Clip, Repeat } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
 
 async function play() {
-    const clip_duration_seconds = 10;
-    const start_at_seconds = 5;
-
-    const repeat_duration_seconds = 20;
-
     const command = new Repeat(
+        {
+            duration: 20
+        },
         new Clip(
-            new Play("./celery_in_a_carrot_field.ogg"),
-            clip_duration_seconds,
-            start_at_seconds
-        ),
-        repeat_duration_seconds
+            {
+                offset: 5,
+                duration: 10
+            },
+            new Play("./celery_in_a_carrot_field.ogg")
+        )
     );
 
     const rhythm = new RhythmContext();
@@ -235,7 +240,7 @@ play();
 ### Sequence
 
 To play tracks one after the other, do this.
-`Sequence` will play the `Clip` inside of it first, and when it ends will play the `Repeat` inside it next.
+Here, `Sequence` will play the `Clip` inside of it first, and when it ends will play the `Repeat` inside it next.
 
 ```typescript
 import { RhythmContext, Play, Clip, Repeat, Sequence } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
@@ -245,8 +250,19 @@ async function play() {
 
     const command = new Sequence(
         [
-            new Clip(song, 10, 5),
-            new Repeat(song, 10)
+            new Clip(
+                {
+                    offset: 5,
+                    duration: 10
+                },
+                song
+            ),
+            new Repeat(
+                {
+                    duration: 10
+                },
+                song
+            )
         ]
     );
 
@@ -268,36 +284,36 @@ To change the volume of a track throughout its playback, try this.
 import { RhythmContext, Play, Gain } from "https://cdn.jsdelivr.net/npm/rhythm.js@latest/dist/rhythm.esm.js";
 
 async function play() {
-    const song = new Play("./celery_in_a_carrot_field.ogg");
-
     const rhythm = new RhythmContext();
-    const compiled_song = await rhythm.compile(song); // See [RhythmContext] section of the readme.
-
-    const fade_duration_seconds = 20;
+    const compiled_song = await rhythm.compile( // See [RhythmContext] section of the readme.
+        new Play("./celery_in_a_carrot_field.ogg")
+    ); 
 
     const faded_song = await rhythm.compile_attached(
         new Gain(
-            compiled_song, // [1] You could very well put any other Audio Command here. It doesn't have to be compiled.
-            [
-                {
-                    value: 0.01, // Can't exponentially fade in from a flat 0.
-                    from_start: 0
-                },
-                {
-                    transition: "exponential",
-                    value: 1,
-                    from_start: fade_duration_seconds
-                },
-                {
-                    value: 1,
-                    from_start: compiled_song.duration - fade_duration_seconds // [2] I only compiled the song to calculate its duration.
-                },
-                {
-                    transition: "exponential",
-                    value: 0.01, // Can't exponentially fade out to a flat 0.
-                    from_start: compiled_song.duration
-                }
-            ]
+            {
+                gain_keyframes: [
+                    {
+                        value: 0.01, // Can't exponentially fade in from a flat 0.
+                        from_start: 0
+                    },
+                    {
+                        transition: "exponential",
+                        value: 1,
+                        from_start: fade_duration_seconds
+                    },
+                    {
+                        value: 1,
+                        from_start: compiled_song.duration - fade_duration_seconds // I only compiled the song to be able to access its duration.
+                    },
+                    {
+                        transition: "exponential",
+                        value: 0.01, // Can't exponentially fade out to a flat 0.
+                        from_start: compiled_song.duration
+                    }
+                ]
+            },
+            compiled_song, // You could very well put any other Audio Command here. It doesn't have to be compiled.
         )
     );
 
