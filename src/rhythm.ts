@@ -534,8 +534,23 @@ class RhythmContext {
 }
 
 export {
+    type NewType,
     type Seconds,
+    type TimeCoordinate,
+    type OnStopListener,
+    type Scheduled,
+    type Playable,
+    type AudioCommand,
+    type CompiledAudioCommand,
+    type AudioParamTransition,
+    type GainKeyframe,
+    type AnyCommand,
+    type AnyCompiledCommand,
+    type CompileToOf,
+
     RhythmContext,
+    Attached,
+
     Play,
     CompiledPlay,
     Clip,
@@ -545,5 +560,5 @@ export {
     Sequence,
     CompiledSequence,
     Gain,
-    CompiledGain
+    CompiledGain,
 };
