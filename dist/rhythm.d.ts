@@ -123,5 +123,5 @@ declare class RhythmContext {
     attach<CompiledCommand extends CompiledAudioCommand<CompiledCommand>>(command: CompiledCommand): Attached<AudioDestinationNode, CompiledCommand>;
     compile<Command extends AudioCommand<any>>(command: Command): Promise<CompileToOf<Command>>;
 }
-export { type Seconds, RhythmContext, Play, CompiledPlay, Clip, CompiledClip, Repeat, CompiledRepeat, Sequence, CompiledSequence, Gain, CompiledGain };
+export { type NewType, type Seconds, type TimeCoordinate, type OnStopListener, type Scheduled, type Playable, type AudioCommand, type CompiledAudioCommand, type AudioParamTransition, type GainKeyframe, type AnyCommand, type AnyCompiledCommand, type CompileToOf, RhythmContext, Attached, Play, CompiledPlay, Clip, CompiledClip, Repeat, CompiledRepeat, Sequence, CompiledSequence, Gain, CompiledGain };
 //# sourceMappingURL=rhythm.d.ts.map

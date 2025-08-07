@@ -331,6 +331,7 @@
         }
     }
 
+    exports.Attached = Attached;
     exports.Clip = Clip;
     exports.CompiledClip = CompiledClip;
     exports.CompiledGain = CompiledGain;

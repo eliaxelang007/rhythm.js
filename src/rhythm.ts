@@ -560,5 +560,5 @@ export {
     Sequence,
     CompiledSequence,
     Gain,
-    CompiledGain,
+    CompiledGain
 };

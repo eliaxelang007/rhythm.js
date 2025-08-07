@@ -325,4 +325,4 @@ class RhythmContext {
     }
 }
 
-export { Clip, CompiledClip, CompiledGain, CompiledPlay, CompiledRepeat, CompiledSequence, Gain, Play, Repeat, RhythmContext, Sequence };
+export { Attached, Clip, CompiledClip, CompiledGain, CompiledPlay, CompiledRepeat, CompiledSequence, Gain, Play, Repeat, RhythmContext, Sequence };
